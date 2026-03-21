@@ -1,0 +1,85 @@
+#!/bin/sh
+[ -z "$1" ] && echo "No command given, run \"$(basename $0) help\" for a list of commands" && exit 1
+REGDOMS="00 AD AE AI AL AM AN AR AS AT AU AW AZ BA BB BD BE BF BG BH BL BM BN BO BR BS BT BY BZ CA CF CH CI CL CN CO CR CU CX CY CZ DE DK DM DO DZ EC EE EG ES ET FI FM FR GB GD GE GF GH GL GP GR GT GU GY HK HN HR HT HU ID IE IL IN IR IS IT JM JO JP KE KH KN KP KR KW KY KZ LB LC LI LK LS LT LU LV MA MC MD ME MF MH MK MN MO MP MQ MR MT MU MV MW MX MY NG NI NL NO NP NP NZ OM PA PE PF PG PH PK PL PM PR PT PW PY QA RE RO RS RU RW SA SE SG SI SK SN SR SV SY TC TD TG TH TN TR TT TW TZ UA UG US UY UZ VC VE VI VN VU WF WS YE YT ZA ZW"
+
+RootCheck() {
+	[ $(whoami) != "root" ] && echo "[ERROR] You must run this program as root" && exit 1
+}
+Help() {
+	echo "Usage: $(basename $0) <COMMAND>"
+	echo " auto:    Enable auto wireless region update and update the wireless region"
+	echo " manual:  Disable auto wireless region update"
+	echo " update:  Detect and update your local wireless region"
+	echo " current: Display the currently set wireless region"
+	echo " local:   Detect local wireless region but do not set it"
+	echo " REGION:  Manually set wireless region to REGION"
+	echo "          (must be a 2 character ISO country code)."
+	echo "          For example, to set the time zone to GB, do:"
+	echo "          \"$(basename $0) GB\""
+	echo "Wireless region detection works by connecting to https://ipapi.co/country"
+	echo "which detects and returns your local wireless region"
+	echo "based on your IP address."
+	echo "If your region code is not in wireless-regdb, then 00 (World) will be used."
+	echo "Location services are NOT required."
+	echo "Your IP address is stored in the server logs for a limited time only,"
+	echo "and is not shared with anyone."
+	echo "See https://ipapi.co/privacy for more details."
+	echo "The following country codes can be set as the wireless region:"
+	echo "$REGDOMS"
+	echo "WARNING: Setting an incorrect wireless region for your country could break local laws and cause interference with other radio devices, and may result in fines and/or prosecution."
+	exit 0
+}
+GetLocalWirelessRegion() {
+	WIRELESS_REGION="$(curl -s --fail https://ipapi.co/country)"
+	[ -z "$WIRELESS_REGION" ] && WIRELESS_REGION="00"
+	[[ " $REGDOMS " == *" $WIRELESS_REGION "* ]] && echo "$WIRELESS_REGION" || echo "00"
+}
+SetWirelessRegion() {
+	touch /etc/conf.d/wireless-regdom
+	# Comment all lines in /etc/conf.d/wireless-regdom
+	sed -i 's/^\([^#].*\)/#\1/g' /etc/conf.d/wireless-regdom
+	if [ ! -z "$(cat /etc/conf.d/wireless-regdom | grep "WIRELESS_REGDOM=\"$1\"")" ]; then
+		# Uncomment regdomain
+		sed -i "/^#WIRELESS_REGDOM=\"$1\"/ cWIRELESS_REGDOM=\"$1\"" /etc/conf.d/wireless-regdom
+	else echo "WIRELESS_REGDOM=\"$1\"" >> /etc/conf.d/wireless-regdom; fi
+	# Set the regdomain now
+	iw reg set $1
+}
+
+case $1 in
+	auto)
+		RootCheck
+		mkdir -p /etc/arch-tweaks
+		echo "1" > /etc/arch-tweaks/auto-wireless-region
+		echo "Auto wireless region update enabled."
+		echo "Updating wireless region..."
+		WIRELESS_REGION="$(GetLocalWirelessRegion)"
+		if [ ! -z "$WIRELESS_REGION" ]; then
+			SetWirelessRegion "$WIRELESS_REGION"
+			echo "Set wireless region to $WIRELESS_REGION"
+		fi;;
+	manual)
+		RootCheck
+		mkdir -p /etc/arch-tweaks
+		echo "0" > /etc/arch-tweaks/auto-wireless-region
+		echo "Auto wireless region update disabled.";;
+	update)
+		RootCheck
+		echo "Updating wireless region..."
+		WIRELESS_REGION="$(GetLocalWirelessRegion)"
+		if [ ! -z "$WIRELESS_REGION" ]; then
+			SetWirelessRegion "$WIRELESS_REGION"
+			echo "Set wireless region to $WIRELESS_REGION"
+		fi;;
+	current) iw reg get | grep -m 1 "country" | cut -d ' ' -f 2 | cut -c1-2;;
+	local) GetLocalWirelessRegion;;
+	help|--help|-h) Help;;
+	*)
+		if [[ " $REGDOMS " == *" $1 "* ]]; then
+			RootCheck
+			SetWirelessRegion $1 && echo "Set wireless region to $1"
+		else
+			echo "[ERROR] Invalid command or region \"$1\", run \"$(basename $0) help\" for a list of commands and regions"
+			exit 1
+		fi;;
+esac

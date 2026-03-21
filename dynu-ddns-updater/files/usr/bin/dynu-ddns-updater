@@ -1,0 +1,25 @@
+#!/bin/sh
+# Read config
+unset USER_NAME USER_PASSWD MY_DOMAIN; . /etc/dynu-ddns-updater.conf
+[ -z "$USER_NAME" ] && echo "[ERROR] Username not specified in /etc/dynu-ddns-updater.conf" && exit 1
+[ -z "$USER_PASSWD" ] && echo "[ERROR] User password/hash not specified in /etc/dynu-ddns-updater.conf" && exit 1
+[ -z "$MY_DOMAIN" ] && echo "[ERROR] Dynu DDNS domain not specified in /etc/dynu-ddns-updater.conf" && exit 1
+
+# Get public IPv4 address
+MY_IPV4="$(curl -s4 https://ifconfig.co)"
+[ -z "$MY_IPV4" ] && \
+echo "[ERROR] Could not find public IPv4 address, check your internet connection. Quitting..." && \
+exit 1 || echo "IPv4: $MY_IPV4"
+
+# Get public IPv6 address if possible
+MY_IPV6="$(curl -s6 https://ifconfig.co)"
+[ -z "$MY_IPV6" ] && \
+echo "[WARNING] Could not find public IPv6 address, check if your ISP or router supports IPv6. Skipping IPv6..." || \
+echo "IPv6: $MY_IPV6"
+
+# Update DDNS via cURL
+if [ -z "$MY_IPV6" ]; then
+	curl "https://api.dynu.com/nic/update?hostname=${MY_DOMAIN}&username=${USER_NAME}&password=${USER_PASSWD}&myip=${MY_IPV4}"
+else
+	curl "https://api.dynu.com/nic/update?hostname=${MY_DOMAIN}&username=${USER_NAME}&password=${USER_PASSWD}&myip=${MY_IPV4}&myipv6=${MY_IPV6}"
+fi; echo

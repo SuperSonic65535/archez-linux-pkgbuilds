@@ -1,0 +1,343 @@
+#!/bin/bash
+[ "$(whoami)" == "root" ] && \
+echo "[ERROR] This script will not work as root/sudo, please run this script as a normal administrator user (member of group wheel)" && \
+exit 1
+#if ! (pkexec echo "Checking for permissions..."); then
+#	echo "[ERROR] Authentication failed, make sure to run this script as a normal administrator user (member of group wheel)"
+#	exit 13
+#fi
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+OS_NAME="$(cat /etc/os-release | grep -m 1 "PRETTY_NAME=" | cut -d '=' -f 2 | sed 's/"//g')"; [ -z "$OS_NAME" ] && OS_NAME="GNU/Linux"
+if [ -f /sys/firmware/efi/fw_platform_size ]; then
+    [ "$(cat /sys/firmware/efi/fw_platform_size)" == 32 ] && \
+    BootMode="i386-efi" || BootMode="x86_64-efi"
+else BootMode="i386-pc"; fi
+
+SelectPartition() {
+	ShowType="$1"; [ -z "$ShowType" ] && ShowType="all"
+	ShowOnly="$2"; [ -z "$ShowOnly" ] && ShowOnly="all"
+	if [ "$ShowType" == "part" ]; then
+		DialogCmd="kdialog --menu \"Select a partition. No changes will be made until installation begins.\""
+	elif [ "$ShowType" == "disk" ]; then
+		DialogCmd="kdialog --menu \"Select a disk. No changes will be made until installation begins.\""
+	else
+		DialogCmd="kdialog --menu \"Select a disk or partition. No changes will be made until installation begins.\""
+	fi; for Output in $(lsblk -n --raw | sed 's/ /#/g'); do
+		DevName="$(echo "$Output" | cut -d '#' -f 1)"
+		Capacity="$(echo "$Output" | cut -d '#' -f 4)"
+		DevType="$(echo "$Output" | cut -d '#' -f 6)"
+		if [ "$DevType" == "part" ]; then
+			Label="$(lsblk -no label /dev/$DevName)"
+			Description="#-#partition#$DevName:#$Label#[$Capacity]"
+		else Description="Disk#$DevName#[$Capacity]"; fi
+
+		if [ "$ShowOnly" != "all" ]; then
+			(echo "$DevName" | grep "$ShowOnly" &> /dev/null) && \
+			DialogCmd="$DialogCmd \"$DevName\" \"$Description\""
+		elif [ "$ShowType" == "$DevType" ] || [ "$ShowType" == "all" ]; then
+			DialogCmd="$DialogCmd \"$DevName\" \"$Description\""
+		fi
+	done; [ "$ShowType" == "all" ] && DialogCmd="$DialogCmd \"\\\$finished\" \"Finished ✅\" " || \
+	DialogCmd="$DialogCmd \"\\\$finished\" \"Go back 🔙\" "
+	TempUUID="${USER}_$(uuidgen)"; touch "/tmp/$TempUUID"; chmod 700 "/tmp/$TempUUID"
+	echo "#/bin/sh" > "/tmp/$TempUUID"; echo "$DialogCmd" | sed 's/#/ /g' >> "/tmp/$TempUUID"
+	"/tmp/$TempUUID"; rm -f "/tmp/$TempUUID"
+}
+PartitionSelection() {
+	SelectedPartitions=""
+	while true; do
+		DevName="$(SelectPartition)"
+		if [ -z "$DevName" ]; then break
+		elif [ "$DevName" == "\$finished" ]; then
+			if [ -z "$SelectedPartitions" ]; then kdialog --error "You must select a root (/) partition and a /boot partition (256MiB or larger)."
+			elif [ -z "$(echo "$SelectedPartitions" | grep ";/boot;")" ]; then kdialog --error "You must select a /boot partition (256MiB or larger)."
+			elif [ -z "$(echo "$SelectedPartitions" | grep ";/;")" ]; then kdialog --error "You must select a root (/) partition."
+			else break; fi
+		else
+			DevInfo="$(lsblk -n --raw "/dev/$DevName" | grep -m 1 "")"
+			Capacity="$(echo "$DevInfo" | cut -d ' ' -f 4)"
+			DevType="$(echo "$DevInfo" | cut -d ' ' -f 6)"
+			if [ "$DevType" == "disk" ]; then
+				Selection="$(kdialog --menu "Disk $DevName [$Capacity]" 1 "Manage partitions (will reset partition selection)" 2 "Go back ❌")"
+				if [ -z "$Selection" ] || [ "$Selection" == 2 ]; then false; else
+					PartitionEditors=""
+					[ -f /usr/bin/fdisk ] && PartitionEditors="$PartitionEditors fdisk FDisk"
+					[ -f /usr/bin/gdisk ] && PartitionEditors="$PartitionEditors gdisk GDisk"
+					[ -f /usr/bin/cfdisk ] && PartitionEditors="$PartitionEditors cfdisk CFDisk"
+					if [ -f /usr/bin/gparted ]; then
+						Selection="$(kdialog --menu "Any changes to partitions will take effect immediately. Make sure you have backed up any important files before proceeding. When finished, partition selection will be reset.\n\nSelect a partition editor:" gparted "GParted (recommended)" $PartitionEditors 0 "Go back ❌")"
+					else
+						Selection="$(kdialog --menu "Any changes to partitions will take effect immediately. Make sure you have backed up any important files before proceeding. When finished, partition selection will be reset.\n\nSelect a partition editor:" $PartitionEditors 0 "Go back ❌")"
+					fi
+					[ ! -z "$Selection" ] && [ "$Selection" != "0" ] && sudo $Selection "/dev/$DevName" && SelectedPartitions="";
+				fi
+			else
+				unset MountPoint NewMountPoint Format FileSystem Label
+				Format="no"
+				FileSystem="$(lsblk -no fstype /dev/$DevName)"
+				[ -z "$NewFileSystem" ] && NewFileSystem="$FileSystem"
+				Label="$(lsblk -no label /dev/$DevName)"
+				for Partition in $SelectedPartitions; do
+					if [ "$(echo "$Partition" | cut -d ';' -f 1)" == "$DevName" ]; then
+						MountPoint="$(echo "$Partition" | cut -d ';' -f 2)"
+						NewMountPoint="$MountPoint"
+						Format="$(echo "$Partition" | cut -d ';' -f 3)"
+						NewFileSystem="$(echo "$Partition" | cut -d ';' -f 4)"
+						Label="$(echo "$Partition" | cut -d ';' -f 5)"
+					fi
+				done; while true; do
+					Selection="$(kdialog --menu "Partition $DevName [$Capacity]" 1 "Mount point: $NewMountPoint" 2 "Format: $Format" 3 "Filesystem: $NewFileSystem" 4 "Label: $Label" 5 "Apply changes ✅")"
+					if [ -z "$Selection" ]; then break; else
+						case $Selection in
+							1)	Mounts=""
+								(echo "$SelectedPartitions" | grep ";/;" &> /dev/null) || Mounts="$Mounts / /"
+								(echo "$SelectedPartitions" | grep ";/boot;" &> /dev/null) || Mounts="$Mounts /boot /boot"
+								(echo "$SelectedPartitions" | grep ";/home;" &> /dev/null) || Mounts="$Mounts /home /home"
+								(echo "$SelectedPartitions" | grep ";swap;" &> /dev/null) || Mounts="$Mounts swap Swap"
+								NewMountPoint="$(kdialog --menu "Select mount point" "none" "None (do not use)" $Mounts "custom" "Custom")"
+								if [ ! -z "$NewMountPoint" ]; then
+									[ "$NewMountPoint" == "custom" ] && NewMountPoint="$(kdialog --inputbox "Enter custom mount point")"
+									if [ ! -z "$NewMountPoint" ]; then
+										[ "$NewMountPoint" == "/" ] && (echo "$SelectedPartitions" | grep ";/;" &> /dev/null) && \
+										kdialog --error "Root (/) partition already assigned." && unset NewMountPoint && Format="no"
+										[ "$NewMountPoint" == "/boot" ] && \
+										(echo "$SelectedPartitions" | grep ";/boot;" &> /dev/null) && \
+										kdialog --error "/boot partition already assigned." && unset NewMountPoint && Format="no"
+										[ "$NewMountPoint" == "/home" ] && \
+										(echo "$SelectedPartitions" | grep ";/home" &> /dev/null) && \
+										kdialog --error "/home partition already assigned." && unset NewMountPoint && Format="no"
+										[ "$NewMountPoint" == "swap" ] && \
+										(echo "$SelectedPartitions" | grep ";swap;" &> /dev/null) && \
+										kdialog --error "Swap partition already assigned." && unset NewMountPoint && Format="no"
+									fi
+								fi; if [ -z "$NewMountPoint" ] || [ "$NewMountPoint" == "none" ]; then
+									unset NewMountPoint; Format=no
+								else
+									case $NewMountPoint in
+										"/") Format="YES"; NewFileSystem="ext4"
+											 [ -z "$Label" ] && Label="$(cat /etc/os-release | \
+											 grep -v "_ID=" | grep -m 1 "ID=" | cut -d '=' -f 2)";;
+										"/boot") NewFileSystem="vfat"; [ -z "$Label" ] && Label="BOOT";;
+										"/home") NewFileSystem="ext4"; [ -z "$Label" ] && Label="home";;
+										"swap") Format="YES"; NewFileSystem="swap"; [ -z "$Label" ] && Label="swap";;
+									esac; [ ! -z "$FileSystem" ] && [ ! -z "$NewFileSystem" ] && \
+									[ "$FileSystem" != "$NewFileSystem" ] && Format="YES"
+								fi;;
+							2)	if [ ! -z "$NewMountPoint" ]; then
+									if [ ! -z "$FileSystem" ] && [ "$FileSystem" != "$NewFileSystem" ]; then Format="YES"
+									elif [ "$NewFileSystem" == "swap" ]; then Format="YES";
+									else [ $Format == "YES" ] && Format="no" || Format="YES"; fi
+								fi;;
+							3) 	if [ $Format == "YES" ]; then
+									if [ ! -z "$NewMountPoint" ]; then
+										case "$NewMountPoint" in
+											"/") FileSystems="ext4 EXT4 btrfs BTRFS";;
+											"/boot") FileSystems="vfat FAT32";;
+											"/home") FileSystems="ext4 EXT4 btrfs BTRFS";;
+											"swap") FileSystems="swap Swap";;
+											*) FileSystems="ext4 EXT4 btrfs BTRFS vfat FAT32 exfat EXFAT";;
+										esac
+										NewFileSystem="$(kdialog --menu "Select filesystem" $FileSystems)"
+										[ ! -z "$FileSystem" ] && [ ! -z "$NewFileSystem" ] && \
+										[ "$FileSystem" != "$NewFileSystem" ] && Format="YES"
+									fi
+								fi;;
+							4)	if [ ! -z "$NewMountPoint" ]; then
+									if [ -z "$Label" ]; then
+										case "$NewMountPoint" in
+											"/") Label="$(cat /etc/os-release | grep -v "_ID=" | grep -m 1 "ID=" | cut -d '=' -f 2)";;
+											"/boot") Label="BOOT";;
+											"/home") Label="home";;
+											"swap") Label="swap";;
+										esac
+									fi; Label="$(kdialog --inputbox "Enter partition label (or leave blank for none)" $Label)"
+								fi;;
+							5)	if [ ! -z "$NewMountPoint" ]; then
+									SelectedPartitions="$(echo "$SelectedPartitions $DevName;$NewMountPoint;$Format;$NewFileSystem;$Label" | xargs -n1 | sort -u | xargs)"
+								elif [ "$MountPoint" != "$NewMountPoint" ]; then
+									SelectedPartitions="$(echo "$SelectedPartitions" | sed "s/[^ ]*;\\$MountPoint;[^ ]*//")"
+								fi; break;;
+						esac
+					fi
+				done
+			fi
+		fi
+	done; echo "$SelectedPartitions"
+}
+InstallOS() {
+	notify-send -u normal -t 0 -a "$OS_NAME Installer" -i install "Installing $OS_NAME" "Installation will take around 2-8 minutes, depending on your hardware. Sit back and relax for a while."
+	SelectedPartitions="$1"
+
+	## Move root partition to top of list so it is mounted first
+	for Partition in $SelectedPartitions; do
+		(echo "$Partition" | grep ";/;" &> /dev/null) && RootPartition="$Partition"
+	done; SelectedPartitions="$(echo "$SelectedPartitions" | sed "s/[^ ]*;\\/;[^ ]*//")"
+	SelectedPartitions="$RootPartition $SelectedPartitions"
+
+	## Prepare partitions
+	echo "Preparing partitions..."
+	for Partition in $SelectedPartitions; do
+		DevName="$(echo "$Partition" | cut -d ';' -f 1)"
+		MountPoint="$(echo "$Partition" | cut -d ';' -f 2)"
+		Format="$(echo "$Partition" | cut -d ';' -f 3)"
+		FileSystem="$(echo "$Partition" | cut -d ';' -f 4)"
+		Label="$(echo "$Partition" | cut -d ';' -f 5)"
+
+		## Format and label partitions
+		sync; if [ "$FileSystem" == "swap" ]; then sudo swapoff "/dev/$DevName"
+		else sudo umount -AfR "/dev/$DevName"; fi
+		if [ "$Format" == "YES" ]; then
+			case $FileSystem in
+				ext4) sudo mkfs.ext4 -F "/dev/$DevName";;
+				btrfs) sudo mkfs.btrfs -f "/dev/$DevName";;
+				vfat) sudo mkfs.vfat -F32 "/dev/$DevName";;
+				exfat) sudo mkfs.exfat "/dev/$DevName";;
+				swap) sudo mkswap "/dev/$DevName";;
+			esac
+		fi; if [ ! -z "$Label" ]; then
+			case $FileSystem in
+				ext4) sudo e2label "/dev/$DevName" "$Label";;
+				btrfs) sudo btrfs filesystem label "/dev/$DevName" "$Label";;
+				vfat) sudo fatlabel "/dev/$DevName" "$Label";;
+				exfat) sudo exfatlabel "/dev/$DevName" "$Label";;
+				swap) sudo swaplabel -L "$Label" "/dev/$DevName";;
+			esac
+		fi; sync; if [ "$FileSystem" == "swap" ]; then sudo swapon "/dev/$DevName"
+		else
+			sudo mkdir -p "/mnt${MountPoint}"
+			sudo mount "/dev/$DevName" "/mnt${MountPoint}"
+		fi
+	done; [ "$BootMode" != "i386-pc" ] && sudo mkdir -p /mnt/boot/EFI
+
+	## Copy rootfs to new root partition
+	echo "Copying rootfs..."
+	sudo cp -rv --preserve=all /run/archiso/airootfs/* /mnt/
+	echo "Copying Linux kernel..."
+	sudo cp -rv --preserve=all /run/archiso/bootmnt/arch/boot/x86_64/vmlinu*-linux* /mnt/boot/
+
+	## FSTAB
+	sudo sh -c "genfstab -U /mnt > /mnt/etc/fstab"
+
+	## Copy installer files
+	sudo cp "$SCRIPT_DIR/config-first-boot.service" /mnt/
+	sudo cp "$SCRIPT_DIR/config-first-boot.sh" /mnt/
+	sudo cp "$SCRIPT_DIR/installer-chroot.sh" /mnt/
+	sudo mkdir -p /mnt/home/live/.config/autostart
+	sudo cp "$SCRIPT_DIR/user-setup.desktop" /mnt/home/live/.config/autostart/
+	sudo cp "$SCRIPT_DIR/user-setup.sh" /mnt/home/live/
+	if [ -f /mnt/bin/icewm ]; then
+		sudo mkdir -p /mnt/home/live/.config/icewm
+		sudo sh -c 'echo "#!/bin/sh" > /mnt/home/live/.config/icewm/startup'
+		sudo sh -c 'echo "/home/live/user-setup.sh" >> /mnt/home/live/.config/icewm/startup'
+		sudo chmod +x /mnt/home/live/.config/icewm/startup
+	fi
+
+	## Chroot setup
+	sudo arch-chroot /mnt "/installer-chroot.sh"
+	sudo rm /mnt/installer-chroot.sh
+	sync
+}
+
+if [ "$BootMode" == "i386-pc" ]; then
+	kdialog --msgbox "Welcome to the $OS_NAME installer! This installation wizard will ask you some questions and then install $OS_NAME on your computer.\n\nWARNING: You have booted in BIOS mode. This is less secure than UEFI, and does not support certain features such as dual-booting and PCI passthrough for virtual machines. Please disable legacy BIOS compatibility and reboot the installation disk in UEFI mode, if possible.\nIf you have an older computer, made before 2008, it may not support UEFI properly or at all, in which case you should consider buying a newer computer.\n\nClick \"OK\" when you are ready to begin."
+else
+	kdialog --msgbox "Welcome to the $OS_NAME installer! This installation wizard will ask you some questions and then install $OS_NAME on your computer.\n\nClick \"OK\" when you are ready to begin."
+fi
+
+## Main menu
+while true; do
+	#Selection="$(kdialog --menu "How would you like to install $OS_NAME?" "multiboot" "Install alongside current OS" "replace" "Replace a partition with $OS_NAME" "erase" "Erase disk and install $OS_NAME" "expert" "Expert installation" 0 "Quit ❌")"
+	Selection="$(kdialog --menu "How would you like to install $OS_NAME?" "erase" "Erase disk and install $OS_NAME" "expert" "Expert installation" 0 "Quit ❌")"
+	[ -z "$Selection" ] || [ "$Selection" == "0" ] && exit 0
+
+	case $Selection in
+		"multiboot")
+			;;
+		"replace")
+			;;
+		"erase")
+			while true; do
+				SelectedDisk="$(SelectPartition disk)"
+				[ -z "$SelectedDisk" ] || [ "$SelectedDisk" == "\$finished" ] && break
+
+				kdialog --yesno "Swap space can be used when physical RAM memory is limited. If you have less than 4GB, swap space is recommended.\n\nNote that swap space is not a replacement for more RAM, and you should always install more if possible.\nIt is only recommended for spinning Hard Disk Drives (HDDs) as it can reduce the lifespan of microchip based flash storage such as Solid State Drives (SSDs) and memory cards.\n\nWould you like to enable swap?" && \
+				SwapMethod="$(kdialog --menu "How would you like to use swap?" "partition" "Dedicated swap partition (recommended)" "file" "Swap file" 0 "None (do not use swap) ❌")"
+				[ -z "$SwapMethod" ] && SwapMethod=0
+				MemSize="$(free -m | grep -m 1 "Mem:" | xargs | cut -d ' ' -f 2)"
+				if [ "$SwapMethod" != 0 ]; then
+					SwapSize="$(kdialog --menu "You have ${MemSize}MiB RAM. It is recommended to make the swap $SwapMethod double that size.\nPlease select a swap size:" \
+					"double" "Double RAM size (recommended)" "ram" "Same size as RAM" "small" "Small (4GiB)" "verysmall" "Very small (1GiB)" \
+					"custom" "Custom size" 0 "None (do not use swap) ❌")"
+					[ -z "$SwapSize" ] && SwapSize=0
+					if [ "$SwapSize" == 0 ]; then SwapMethod=0; else
+						case $SwapSize in
+							"double") SwapSize="$(expr $MemSize \* 2)";;
+							"ram") SwapSize="$MemSize";;
+							"small") SwapSize="4096";;
+							"verysmall") SwapSize="1024";;
+							"custom")
+								while true; do
+									SwapSize="$(kdialog --inputbox "Enter swap size in MiB" "$(expr $MemSize \* 2)")"
+									[ -z "$SwapSize" ] && SwapSize=0 && SwapMethod=0 && break
+									(expr "$SwapSize" \* 1 &> /dev/null) && break || kdialog --error "You have entered an invalid value.\nThe value must be an integer\n(whole number, without decimals, letters or symbols)"
+								done
+								;;
+						esac
+					fi
+				fi
+
+				InstallationText="$OS_NAME is now ready to be installed.\nThe following changes will now be made:\n\n"
+				[ "$BootMode" == "i386-pc" ] && \
+				InstallationText="${InstallationText}Create new MBR partition table on disk $SelectedDisk\nCreate 512MiB /boot partition on disk $SelectedDisk\n" || \
+				InstallationText="${InstallationText}Create new GPT partition table on disk $SelectedDisk\nCreate 512MiB EFI /boot partition on disk $SelectedDisk\n"
+				[ "$SwapMethod" == "partition" ] && InstallationText="${InstallationText}Create ${SwapSize}MiB swap partition on disk $SelectedDisk\n"
+				InstallationText="${InstallationText}Install $OS_NAME on disk $SelectedDisk\n"
+				[ "$BootMode" == "i386-pc" ] && InstallationText="${InstallationText}Install GRUB bootloader to MBR on disk $SelectedDisk (legacy BIOS mode)" || \
+				InstallationText="${InstallationText}Install GRUB bootloader to GPT on disk $SelectedDisk (UEFI mode)"
+				InstallationText="${InstallationText}\n\nThis will erase ALL data on disk $SelectedDisk. Make sure you have backed up any important files.\nThis window will close during installation, and you will be notified when installation is complete.\nBegin installation?"
+				kdialog --warningyesno "$InstallationText" || break
+
+				echo "Erasing disk $SelectedDisk and creating partitions..."
+				if [ "$BootMode" == "i386-pc" ]; then ## BIOS mode install
+					## Create new MBR and partitions
+					sudo sh -c "(echo 'label: dos'; echo 'start=2048, size=512M, type=EF'; \
+					[ $SwapMethod == partition ] && echo 'start=, size=${SwapSize}M, type=82'; \
+					echo 'start=, size=, type=83') | sfdisk /dev/$SelectedDisk"
+				else ## UEFI mode install
+					## Create new GPT and partitions
+					sudo sh -c "(echo 'label: gpt'; echo 'start=2048, size=512M, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B'; \
+					[ $SwapMethod == partition ] && echo 'start=, size=${SwapSize}M, type=0657FD6D-A4AB-43C4-84E5-0933C84B4F4F'; \
+					echo 'start=, size=, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4') | sfdisk /dev/$SelectedDisk"
+				fi
+
+				## Start installation
+				case $SelectedDisk in
+					nvme*n*|mmcblk*)
+						if [ "$SwapMethod" == "partition" ]; then
+							InstallOS "${SelectedDisk}p1;/boot;YES;vfat;BOOT ${SelectedDisk}p2;swap;YES;swap;swap ${SelectedDisk}p3;/;YES;ext4;$(cat /etc/os-release | grep -v "_ID=" | grep -m 1 "ID=" | cut -d '=' -f 2)"
+						else
+							InstallOS "${SelectedDisk}p1;/boot;YES;vfat;BOOT ${SelectedDisk}p2;/;YES;ext4;$(cat /etc/os-release | grep -v "_ID=" | grep -m 1 "ID=" | cut -d '=' -f 2)"
+						fi;;
+					sd*|vd*|hd*)
+						if [ "$SwapMethod" == "partition" ]; then
+							InstallOS "${SelectedDisk}1;/boot;YES;vfat;BOOT ${SelectedDisk}2;swap;YES;swap;swap ${SelectedDisk}3;/;YES;ext4;$(cat /etc/os-release | grep -v "_ID=" | grep -m 1 "ID=" | cut -d '=' -f 2)"
+						else
+							InstallOS "${SelectedDisk}1;/boot;YES;vfat;BOOT ${SelectedDisk}2;/;YES;ext4;$(cat /etc/os-release | grep -v "_ID=" | grep -m 1 "ID=" | cut -d '=' -f 2)"
+						fi;;
+				esac; break
+			done
+			kdialog --msgbox "$OS_NAME installation complete. Please restart your computer.\n\nYou will be automatically logged in as the user \"live\" and will be asked to complete the setup.\n\nHave fun, and thanks for using $OS_NAME!"
+			exit 0;;
+		"expert")
+			SelectedPartitions="$(PartitionSelection)"
+			if [ ! -z "$SelectedPartitions" ]; then
+				kdialog --warningyesno "$OS_NAME is now ready to be installed to the selected partitions.\nThis will delete any existing OS on the selected partitions.\nThis will also delete all data on partitions that will be formatted.\nPlease check the list of changes:\n\n${SelectedPartitions}\n\nBegin installation?" && Continue=1 || Continue=0
+				if [ "$Continue" == 1 ]; then
+					InstallOS "$SelectedPartitions"
+					kdialog --msgbox "$OS_NAME installation complete. Please restart your computer.\n\nYou will be automatically logged in as the user \"live\" and will be asked to complete the setup.\n\nHave fun, and thanks for using $OS_NAME!"
+					exit 0
+				fi
+			fi;;
+	esac
+done

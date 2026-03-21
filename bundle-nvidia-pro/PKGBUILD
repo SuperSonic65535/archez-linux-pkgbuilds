@@ -1,0 +1,18 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@protonmail.com>
+pkgname=bundle-nvidia-pro
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Proprietary Nvidia GPU drivers - all-in-one bundle (64bit+32bit, for Maxwell GPUs and newer)'
+arch=(x86_64)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+conflicts=('bundle-nvidia-free' 'bundle-nvidia-pro-340xx' 'bundle-nvidia-pro-390xx' 'bundle-nvidia-pro-470xx' 'bundle-nvidia-pro-525xx')
+depends=(libxnvctrl
+	nvidia-dkms
+	nvidia-settings
+	nvidia-utils lib32-nvidia-utils
+	nvidia-prime
+	ocl-icd lib32-ocl-icd
+	opencl-nvidia lib32-opencl-nvidia
+	vulkan-icd-loader lib32-vulkan-icd-loader
+)
+install=install.install

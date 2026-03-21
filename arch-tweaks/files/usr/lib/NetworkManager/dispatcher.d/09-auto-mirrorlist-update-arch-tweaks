@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$2" in
+	connectivity-change) ## When system goes online, update Pacman mirrorlist
+		# Load settings
+		unset AUTO_MIRRORLIST_UPDATE
+		AUTO_MIRRORLIST_UPDATE="$(cat auto-mirrorlist-update)"
+		[ -z "$AUTO_MIRRORLIST_UPDATE" ] && AUTO_MIRRORLIST_UPDATE=0
+		[ $AUTO_MIRRORLIST_UPDATE != 1 ] && AUTO_MIRRORLIST_UPDATE=0
+		[ $AUTO_MIRRORLIST_UPDATE == 1 ] && /usr/lib/arch-tweaks/system-tools/pacman-mirrorlist update;;
+esac

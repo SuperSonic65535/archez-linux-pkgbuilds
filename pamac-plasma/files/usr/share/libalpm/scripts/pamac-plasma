@@ -1,0 +1,3 @@
+#!/bin/sh
+cp /usr/share/pamac-plasma/usr/share/plasma/plasmoids/a2n.archupdate.plasmoid/contents/config/main.xml \
+/usr/share/plasma/plasmoids/a2n.archupdate.plasmoid/contents/config/main.xml

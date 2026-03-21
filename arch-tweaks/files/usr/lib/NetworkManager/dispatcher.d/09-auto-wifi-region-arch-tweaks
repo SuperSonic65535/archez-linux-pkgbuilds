@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$2" in
+	connectivity-change) ## When system goes online, detect and set local wireless region
+		# Load settings
+		unset AUTO_WIRELESS_REGION
+		AUTO_WIRELESS_REGION="$(cat /etc/arch-tweaks/auto-wireless-region)"
+		[ -z "$AUTO_WIRELESS_REGION" ] && AUTO_WIRELESS_REGION=1
+		[ $AUTO_WIRELESS_REGION != 1 ] && AUTO_WIRELESS_REGION=1
+		[ $AUTO_WIRELESS_REGION == 1 ] && /usr/lib/arch-tweaks/system-tools/wireless-region update;;
+esac

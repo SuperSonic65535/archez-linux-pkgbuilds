@@ -1,0 +1,22 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=bundle-networking
+replaces=(networking-meta)
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Networking support via NetworkManager - all-in-one bundle (Wi-Fi/ethernet)'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+depends=(avahi
+	ethtool
+	iw
+	networkmanager
+	nss-mdns
+	polkit
+	usb_modeswitch
+	wireless-regdb
+)
+package() {
+	cp -r "$srcdir/../files/usr" "$pkgdir"
+	"$srcdir/../../set-default-permissions.sh" "$pkgdir"
+	chmod +x "$pkgdir/usr/share/libalpm/scripts/bundle-networking-install"
+}

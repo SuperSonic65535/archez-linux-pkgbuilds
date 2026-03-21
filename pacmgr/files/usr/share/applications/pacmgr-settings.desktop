@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Exec=/usr/bin/pacmgr-settings
+X-KDE-StartupNotify=false
+NoDisplay=false
+Terminal=false
+Categories=System;PackageManager;
+Icon=system-software-install
+Name=System Update Settings
+Comment=Configure system and software updates

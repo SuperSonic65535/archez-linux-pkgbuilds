@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "dankcuddlybear@proton.me",
+                "Name": "Dankcuddlybear"
+            }
+        ],
+        "Category": "Plasma 6.0 theme",
+        "Description": "A glassy, transluscent theme. Fork of MacSequoia-Light theme by Vince Liuice.",
+        "EnabledByDefault": true,
+        "Id": "Klarity",
+        "License": "GPL-3.0",
+        "Name": "Klarity",
+        "Version": "6.2.0",
+        "Website": "https://github.com/dankcuddlybear"
+    },
+    "X-Plasma-API": "5.0"
+}

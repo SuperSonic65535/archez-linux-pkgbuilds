@@ -1,0 +1,5 @@
+post_upgrade() {
+	if [ $(vercmp 2026.3.1-72542 $2) -ge 0 ]; then
+		/usr/share/libalpm/scripts/bundle-kde-lite-install
+	fi
+}

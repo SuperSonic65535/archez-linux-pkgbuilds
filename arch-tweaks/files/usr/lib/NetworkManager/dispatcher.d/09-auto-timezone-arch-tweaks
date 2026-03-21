@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$2" in
+	connectivity-change) ## When system goes online, detect and set local time zone
+		# Load settings
+		unset AUTO_TIMEZONE
+		AUTO_TIMEZONE="$(cat /etc/arch-tweaks/auto-timezone)"
+		[ -z "$AUTO_TIMEZONE" ] && AUTO_TIMEZONE=1
+		[ $AUTO_TIMEZONE != 1 ] && AUTO_TIMEZONE=1
+		[ $AUTO_TIMEZONE == 1 ] && /usr/lib/arch-tweaks/system-tools/timezone update;;
+esac

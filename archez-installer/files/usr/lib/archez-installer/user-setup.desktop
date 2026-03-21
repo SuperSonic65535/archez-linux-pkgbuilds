@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Exec=/home/live/user-setup.sh
+Terminal=true
+Icon=system-software-install
+Name=User setup
+Comment=User setup for first-time boot

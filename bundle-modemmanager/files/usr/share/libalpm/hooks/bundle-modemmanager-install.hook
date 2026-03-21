@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Install
+Target = bundle-modemmanager
+
+[Action]
+Description = Configuring ModemManager
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/bundle-modemmanager-install

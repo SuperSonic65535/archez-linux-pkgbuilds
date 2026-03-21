@@ -1,0 +1,29 @@
+#!/bin/sh
+[ -z $1 ] && exit
+## Remove lines that don't define a Server
+while read LINE; do
+	## Get the first word in line
+	LINE_START="$(echo "$LINE" | cut -d '=' -f 1 | xargs)"
+	## Check it is not empty
+	if [ ! -z "$LINE_START" ]; then
+		## Check that it defines a Server
+		if [ "$LINE_START" == "Server" ]; then
+			## Check that a URL is specified
+			URL="$(echo "$LINE" | cut -d '=' -f 2 | xargs)"
+			if [ ! -z "$URL" ]; then
+				## Check that the URL begins with http:// or https://
+				if [ "$(echo "$URL" | cut -c1-8)" == "https://" ] || \
+				[ "$(echo "$URL" | cut -c1-7)" == "http://" ]; then
+					DOMAIN="$(echo "$URL" | cut -d '/' -f 3)"
+					## Check that the domain has at least one dot
+					if [ "$(awk -F. '{print NF-1}' <<<"$DOMAIN")" -ge 1 ]; then
+						## Finally, check that the URL has more than 3 forward slashes
+						if [ "$(awk -F/ '{print NF-1}' <<<"$URL")" -ge 4 ]; then
+							echo "$LINE"
+						fi
+					fi
+				fi
+			fi
+		fi
+	fi
+done < $1

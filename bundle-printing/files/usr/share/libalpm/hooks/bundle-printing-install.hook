@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Install
+Target = bundle-printing
+
+[Action]
+Description = Configuring Printing and Scanning
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/bundle-printing-install

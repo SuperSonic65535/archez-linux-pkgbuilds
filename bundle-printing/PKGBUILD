@@ -1,0 +1,31 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=bundle-printing
+replaces=(printing-meta)
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Printing and scanning - all-in-one bundle'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+depends=(avahi
+	bluez-cups
+	cups-browsed
+	cups-pdf
+	cups-pk-helper
+	foomatic-db-engine
+	foomatic-db-gutenprint-ppds
+	foomatic-db-nonfree-ppds
+	foomatic-db-ppds
+	gsfonts
+	gutenprint
+	ipp-usb
+	sane-airscan
+	sane-gt68xx-firmware
+	splix
+	system-config-printer
+	xdg-utils
+)
+package() {
+	cp -r "$srcdir/../files/usr" "$pkgdir"
+	"$srcdir/../../set-default-permissions.sh" "$pkgdir"
+	chmod +x "$pkgdir/usr/share/libalpm/scripts/bundle-printing-install"
+}

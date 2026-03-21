@@ -1,0 +1,60 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=bundle-kde
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='KDE Plasma desktop - all-in-one bundle (desktop only, no apps included)'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+replaces=('bundle-kde-extras')
+depends=(bundle-kde-lite
+	# GTK compatibility
+    appmenu-gtk-module
+    breeze-gtk breeze5
+    kde-gtk-config
+
+    # Wireless and hardware
+	bluedevil bluez-obex
+	kscreen
+	plasma-disks
+	plasma-keyboard
+	plasma-thunderbolt
+	print-manager system-config-printer cups-pk-helper python-pysmbc
+	wacomtablet
+
+	# Multimedia
+	audiocd-kio
+	ffmpegthumbs
+	icoutils
+	kamera
+	kdegraphics-thumbnailers
+	kimageformats libraw
+	kimageformats5
+	libappimage
+	qt5-imageformats
+	qt6-imageformats
+
+	# Networking and internet
+	kdenetwork-filesharing
+	kio-zeroconf
+	krdp
+	ksshaskpass
+	plasma-browser-integration
+	plasma-firewall
+	purpose
+
+	# Settings
+	flatpak-kcm
+	kmenuedit
+	plasma5-integration kio5-extras
+	plymouth-kcm
+
+	# Misc
+	kdialog
+	kio-admin
+	kwayland-integration
+	kwrited
+	packagekit-qt6
+	plasma-desktop
+	xdg-desktop-portal-gtk
+	xdg-desktop-portal-kde
+)

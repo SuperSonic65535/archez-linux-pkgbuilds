@@ -1,0 +1,16 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=arch-pkg-gui-tools
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Graphical tools to help fix issues with package installation/updates'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+depends=(
+    pacman
+)
+package() {
+	cp -r "$srcdir/../files/usr" "$pkgdir"
+	"$srcdir/../../set-default-permissions.sh" "$pkgdir"
+	chmod +x "$pkgdir/usr/lib/arch-pkg-gui-tools/keyring-updater.sh"
+	chmod +x "$pkgdir/usr/lib/arch-pkg-gui-tools/pkg-reinstaller.sh"
+}

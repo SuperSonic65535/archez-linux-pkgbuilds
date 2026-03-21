@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Remove
+Type = Package
+Target = bashrc-d
+
+[Action]
+Description = Updating default bashrc...
+When = PreTransaction
+Exec = /usr/share/libalpm/scripts/bashrc-d uninstall

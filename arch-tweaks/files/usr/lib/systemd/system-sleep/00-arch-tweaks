@@ -1,0 +1,4 @@
+#!/bin/sh
+case $1 in post)
+	udevadm trigger # Reload udev rules
+esac

@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Install
+Target = bundle-networking
+
+[Action]
+Description = Configuring Networking
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/bundle-networking-install

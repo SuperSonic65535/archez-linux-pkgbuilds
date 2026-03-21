@@ -1,0 +1,11 @@
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = pamac-plasma
+Target = plasma6-applets-arch-update-notifier
+
+[Action]
+Description = Updating pamac-plasma...
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/pamac-plasma

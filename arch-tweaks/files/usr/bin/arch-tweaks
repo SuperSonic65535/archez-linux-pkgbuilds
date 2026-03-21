@@ -1,0 +1,38 @@
+#!/bin/sh
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+UTIL_DIR="$SCRIPT_DIR/../lib/arch-tweaks/system-tools"
+
+## Exit if no command given
+[ -z "$1" ] && echo "[ERROR] No command given, run \"$(basename $0) help\" for a list of commands" && exit 1
+
+## Help function
+Help() {
+	echo "Run \"$(basename $0) help <COMMAND>\" for help specific to that command."
+	echo "The following commands are available:"
+	echo; ls -1 "$UTIL_DIR"; echo; exit 0
+}
+
+## Check for errors and show help
+if [ ! -z "$1" ] && ([ "$1" == "help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]); then
+	if [ -z "$2" ]; then Help; else ## If no command given, list available commands
+		if [ ! -f "$UTIL_DIR/$2" ]; then ## If script does not exist, throw error and quit
+			echo "[ERROR] Unrecognised command \"$2\", run \"$(basename $0) help\" for a list of commands"; exit 1
+		elif [ ! -x "$UTIL_DIR/$2" ]; then ## If script is not executable, throw error and quit
+			echo "[ERROR] File $UTIL_DIR/$2 is not executable, please set execute permissions for this file:"
+			echo "sudo chmod +x $UTIL_DIR/$2"; exit 1
+		else ## Show command help
+			cd "$UTIL_DIR"; ./$2 help; exit 0
+		fi
+	fi
+fi
+
+## Check for errors and execute the command
+if [ ! -f "$UTIL_DIR/$1" ]; then ## If script does not exist, throw error and quit
+	echo "[ERROR] Unrecognised command \"$1\", run \"$(basename $0) help\" for a list of commands"; exit 1
+elif [ ! -x "$UTIL_DIR/$1" ]; then ## If script is not executable, throw error and quit
+	echo "[ERROR] File $UTIL_DIR/$1 is not executable, please set execute permissions for this file:"
+	echo "sudo chmod +x $UTIL_DIR/$1"; exit 1
+else ## Check for root and execute command if using root, otherwise throw error and quit
+	#[ $(whoami) != "root" ] && echo "[ERROR] You must run this utility as root (sudo $(basename $0) <COMMAND>)" && exit 1
+	cd "$UTIL_DIR"; ./$@
+fi

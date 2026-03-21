@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Arch Breeze 1.5x
+Description=Arch Linux theme insired by KDE Breeze (1.5x scaled for HiDPI)
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/arch-breeze-1.5x
+ScriptFile=/usr/share/plymouth/themes/arch-breeze-1.5x/script

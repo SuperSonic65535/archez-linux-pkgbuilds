@@ -1,0 +1,26 @@
+#!/bin/sh
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+# Disable fallback image generation for existing presets
+for FILE in $(ls -A /etc/mkinitcpio.d); do
+	sed -i "s/^.*PRESETS=('default' 'fallback').*$/PRESETS=('default')/" /etc/mkinitcpio.d/$FILE
+	sed -i "s/^fallback/#&/" /etc/mkinitcpio.d/$FILE
+done
+
+# Create missing presets
+for KERNEL in $($SCRIPT_DIR/get-installed-kernels); do
+	KERNEL_NAME="$(echo $KERNEL | cut -d ';' -f 1)"
+	if [ ! -f /etc/mkinitcpio.d/$KERNEL_NAME.preset ]; then
+		echo "# mkinitcpio preset file for the '$KERNEL_NAME' package" > /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo "#ALL_config=\"/etc/mkinitcpio.conf\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo "ALL_kver=\"/boot/vmlinuz-$KERNEL_NAME\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo "PRESETS=('default')" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo "#default_config=\"/etc/mkinitcpio.conf\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo "default_image=\"/boot/initramfs-$KERNEL_NAME.img\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo "#default_uki=\"/efi/EFI/Linux/arch-$KERNEL_NAME.efi\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+		echo "#default_options=\"--splash /usr/share/systemd/bootctl/splash-arch.bmp\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	fi
+done

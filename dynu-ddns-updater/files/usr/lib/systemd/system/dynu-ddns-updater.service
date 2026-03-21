@@ -1,0 +1,8 @@
+[Unit]
+Description=Update Dynu dynamic DNS
+
+[Service]
+Type=oneshot
+Restart=no
+RemainAfterExit=no
+ExecStart=/usr/bin/dynu-ddns-updater

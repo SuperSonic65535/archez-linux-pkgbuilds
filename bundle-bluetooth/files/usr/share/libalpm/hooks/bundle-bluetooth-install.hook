@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Install
+Target = bundle-bluetooth
+
+[Action]
+Description = Configuring Bluetooth
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/bundle-bluetooth-install

@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = limine
+
+[Action]
+Description = Update Limine bootloader
+When = PostTransaction
+Exec = /usr/lib/arch-tweaks/system-tools/install-limine upgrade

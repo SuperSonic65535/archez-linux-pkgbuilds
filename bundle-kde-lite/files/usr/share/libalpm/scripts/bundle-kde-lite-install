@@ -1,0 +1,17 @@
+#!/bin/sh
+## Copy SDDM config
+#mkdir -p /etc/sddm.conf.d &> /dev/null
+#cp -n /usr/share/KDE/bundle-kde-lite/sddm.conf.d/*.conf /etc/sddm.conf.d/
+
+## If installed on a tablet or touch screen device,
+## switch SDDM to X11 mode as virtual keyboard does not work on Walyand
+#(udevadm info --export-db --no-pager | grep -m 1 -i "Touchscreen" &> /dev/null) && \
+#sed -i "s/DisplayServer=wayland/DisplayServer=x11/g" /etc/sddm.conf.d/wayland.conf
+
+## Disable existing display manager and enable SDDM
+rm -f /etc/systemd/system/display-manager.service &> /dev/null
+systemctl enable plasmalogin &> /dev/null
+echo "[ATTENTION] KDE Plasma Login manager has been enabled."
+echo "            To start Plasma Login, reboot your device"
+echo "            or run the command \"sudo systemctl start plasmalogin\""
+echo "            after installation is complete."

@@ -1,0 +1,1 @@
+%wheel ALL=(ALL) NOPASSWD: /usr/lib/pacmgr/pacman-download.sh, /usr/lib/pacmgr/pacman-repo-update.sh, /usr/lib/pacmgr/pacman-upgrade.sh, /usr/lib/pacmgr/pacman-upgrade-manual.sh

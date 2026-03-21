@@ -1,0 +1,12 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=fruit-cursors
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Free open-source cursor theme inspired by a certain fruit-named company'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+depends=()
+package() {
+	cp -r "$srcdir/../files/usr" "$pkgdir"
+	"$srcdir/../../set-default-permissions.sh" "$pkgdir"
+}

@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Breeze
+Description=Plymouth theme insired by KDE Breeze (without Arch Linux branding)
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/breeze
+ScriptFile=/usr/share/plymouth/themes/breeze/script

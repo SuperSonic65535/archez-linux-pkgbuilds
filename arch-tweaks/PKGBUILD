@@ -1,0 +1,38 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=arch-tweaks
+replaces=(arch-tweaks-meta)
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Performance and effeciency optimisations and other tweaks for Arch Linux'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+depends=(
+	base
+	bashrc-d
+	dmidecode
+	iproute2
+	hdparm
+	kernel-modules-hook
+	KSMBD-MODULE
+	mkinitcpio
+	networkmanager
+	pacman
+	#rate-mirrors
+	sudo
+	systemd
+	terminus-font
+	wireless-regdb
+)
+package() {
+	cp -r "$srcdir/../files/etc" "$pkgdir"
+	cp -r "$srcdir/../files/usr" "$pkgdir"
+	"$srcdir/../../set-default-permissions.sh" "$pkgdir"
+	CDIR="$(pwd)"
+	for DIR in "$pkgdir/usr/bin" \
+	"$pkgdir/usr/lib/arch-tweaks/system-scripts" \
+	"$pkgdir/usr/lib/arch-tweaks/system-tools" \
+	"$pkgdir/usr/lib/NetworkManager/dispatcher.d" \
+	"$pkgdir/usr/lib/systemd/system-sleep"; do
+		cd "$DIR"; chmod +x *
+	done; cd "$CDIR"
+}

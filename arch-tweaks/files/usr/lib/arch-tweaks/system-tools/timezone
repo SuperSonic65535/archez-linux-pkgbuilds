@@ -1,0 +1,63 @@
+#!/bin/sh
+[ -z "$1" ] && echo "No command given, run \"$(basename $0) help\" for a list of commands" && exit 1
+
+RootCheck() {
+	[ $(whoami) != "root" ] && echo "[ERROR] You must run this program as root" && exit 1
+}
+Help() {
+	echo "Usage: $(basename $0) <COMMAND>"
+	echo " auto:      Enable auto timezone update and update the time zone"
+	echo " manual:    Disable auto timezone update"
+	echo " update:    Detect and update your local time zone"
+	echo " current:   Display the currently set time zone"
+	echo " local:     Detect your current region's time zone but do not set it"
+	echo " TIME_ZONE: Manually set time zone to TIME_ZONE"
+	echo "            For example, to set the time zone to Europe/London, do:"
+	echo "            \"$(basename $0) Europe/London\""
+	echo "To see available time zones, look inside directory /usr/share/zoneinfo"
+	echo "Timezone detection works by connecting to https://ipapi.co/timezone"
+	echo "which detects and returns your local time zone based on your IP address."
+	echo "Location services are NOT required."
+	echo "Your IP address is stored in the server logs for a limited time only,"
+	echo "and is not shared with anyone."
+	echo "See https://ipapi.co/privacy for more details."
+	exit 0
+}
+GetLocalTimeZone() {
+	curl -s --fail https://ipapi.co/timezone
+}
+SetTimeZone() {
+	[ ! -f /etc/localtime ] && ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+	timedatectl set-timezone $1
+}
+
+case $1 in
+	auto)
+		RootCheck
+		mkdir -p /etc/arch-tweaks
+		echo "1" > /etc/arch-tweaks/auto-timezone
+		echo "Auto time zone update enabled."
+		echo "Updating time zone..."
+		TIME_ZONE="$(GetLocalTimeZone)"
+		[ ! -z "$TIME_ZONE" ] && SetTimeZone "$TIME_ZONE" && echo "Set time zone to $TIME_ZONE";;
+	manual)
+		RootCheck
+		mkdir -p /etc/arch-tweaks
+		echo "0" > /etc/arch-tweaks/auto-timezone
+		echo "Auto time zone update disabled.";;
+	update)
+		RootCheck
+		echo "Updating time zone..."
+		TIME_ZONE="$(GetLocalTimeZone)"
+		[ ! -z "$TIME_ZONE" ] && SetTimeZone "$TIME_ZONE" && echo "Set time zone to $TIME_ZONE";;
+	current) readlink -f /etc/localtime | sed "s|/usr/share/zoneinfo/||";;
+	local) GetLocalTimeZone; echo;;
+	help|--help|-h) Help;;
+	*)
+		if [ -f "/usr/share/zoneinfo/$1" ]; then
+			SetTimeZone $1 && echo "Set time zone to $1"
+		else
+			echo "[ERROR] Unknown command \"$1\", run \"$(basename $0) help\" for a list of commands"
+			exit 1
+		fi;;
+esac

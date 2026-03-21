@@ -1,0 +1,18 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@protonmail.com>
+pkgname=bundle-nvidia-pro-470xx
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Proprietary Nvidia GPU 470.xx drivers - all-in-one bundle (64bit+32bit, for Kepler GPUs)'
+arch=(x86_64)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+conflicts=('bundle-nvidia-free' 'bundle-nvidia-pro' 'bundle-nvidia-pro-340xx' 'bundle-nvidia-pro-390xx' 'bundle-nvidia-pro-525xx')
+depends=(libxnvctrl-470xx
+	nvidia-470xx-dkms
+	nvidia-470xx-settings
+	nvidia-470xx-utils lib32-nvidia-470xx-utils
+	nvidia-prime
+	ocl-icd lib32-ocl-icd
+	opencl-nvidia-470xx lib32-opencl-nvidia-470xx
+	vulkan-icd-loader lib32-vulkan-icd-loader
+)
+install=install.install

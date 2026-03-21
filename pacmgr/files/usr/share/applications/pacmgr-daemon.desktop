@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Exec=/usr/bin/pacmgr-daemon
+X-KDE-StartupNotify=false
+NoDisplay=false
+Terminal=false
+Categories=System;PackageManager;
+Icon=system-software-install
+Name=System Update Checker
+Comment=Automatically check for system/software updates and install them

@@ -1,0 +1,3 @@
+#!/bin/sh
+systemctl --now enable bluetooth &> /dev/null
+exit 0

@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Install
+Target = plymouth-theme-breeze
+
+[Action]
+Description = Setting boot splash screen...
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/plymouth-theme-breeze-install

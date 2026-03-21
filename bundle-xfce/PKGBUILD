@@ -1,0 +1,43 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=bundle-xfce
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='XFCE desktop - all-in-one bundle (only desktop and file manager, no other applications included)'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+install=install.install
+depends=(
+	adwaita-qt5
+	adwaita-qt6
+	blueman
+	bundle-gvfs
+	gnu-free-fonts
+	light-locker
+	lightdm-gtk-greeter
+	menulibre
+	mugshot
+	network-manager-applet
+	pavucontrol
+	qt5ct
+	qt6ct
+	thunar
+	thunar-archive-plugin
+	thunar-media-tags-plugin
+	thunar-volman
+	# Thumbnails
+	tumbler ffmpegthumbnailer freetype2 libgepub libgsf libopenraw poppler-glib
+	xdg-desktop-portal-gtk
+	xdg-desktop-portal-xapp
+	xfce4-panel
+	xfce4-power-manager
+	xfce4-pulseaudio-plugin
+	xfce4-screensaver
+	xfce4-session
+	xfce4-settings
+	xfdesktop
+	xfwm4
+)
+package() {
+	cp -r "$srcdir/../files/etc" "$pkgdir"
+	"$srcdir/../../set-default-permissions.sh" "$pkgdir"
+}

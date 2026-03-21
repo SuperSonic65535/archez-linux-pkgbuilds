@@ -1,0 +1,9 @@
+#!/bin/sh
+## Enable services
+systemctl --now enable fstrim.timer systemd-timesyncd arch-tweaks-hwsetup &> /dev/null
+
+## Copy configs
+cp -r /usr/share/arch-tweaks/custom-configs/etc/* /etc/
+
+## Exit gracefully
+exit 0

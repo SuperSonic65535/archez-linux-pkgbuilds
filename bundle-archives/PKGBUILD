@@ -1,0 +1,27 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=bundle-archives
+replaces=(archives-meta)
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='Support for additional compressed file types - all-in-one bundle'
+arch=(any)
+url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+depends=(
+	binutils
+	bzip2
+	bzip3
+	cpio
+	gzip
+	libarchive
+	lrzip
+	lz4
+	lzip
+	lzop
+	p7zip
+	tar
+	unrar
+	unzip
+	xz
+	zip
+	zstd
+)

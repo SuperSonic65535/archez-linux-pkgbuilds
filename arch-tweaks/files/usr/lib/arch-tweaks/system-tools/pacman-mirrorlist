@@ -1,0 +1,152 @@
+#!/bin/sh
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+[ -z "$1" ] && echo "No command given, run \"$(basename $0) help\" for a list of commands" && exit 1
+
+RootCheck() {
+	[ $(whoami) != "root" ] && echo "[ERROR] You must run this program as root" && exit 1
+}
+Help() {
+	echo "Usage: $(basename $0) <COMMAND>"
+	echo " auto:       Enable auto pacman mirrorlist update and update all pacman mirrorlists."
+	echo " manual:     Disable auto pacman mirrorlist update."
+	echo " update:     Update all pacman mirrorlists now."
+	echo "             Optionally, to only update one mirrorlist, specify the repository name."
+	echo "             Supported: archlinux cachyos cachyos-v3 cachyos-v4 chaotic-aur"
+	echo "Updates are done in parallel and in the background when running an update."
+	exit 0
+}
+GetTimeAndDate() {
+	date +%Y/%-m/%-d\ %-H:%-M
+}
+
+UpdateMirror() { ## <URL> <FILEPATH> [arch|cachyos|chaotic-aur]
+	## Download up to date mirrorlist and uncomment mirrors
+	curl -s "$1" | sed -e 's/^#Server/Server/' -e '/^#/d' > "$2.download"
+	## Check that mirrorlist has downloaded successfully
+	if [ -z "$(cat "$2.download")" ]; then rm "$2.download"; else
+		## Back up original mirrorlist
+		cp "$2" "$2.backup"
+		## Rate mirrors
+		mv "$2.download" "$2"
+		cat "$2" | rate-mirrors --allow-root --disable-comments --save "$2.new" "$3"
+		## Filter invalid mirrors from mirrorlist
+		"$SCRIPT_DIR/../system-scripts/filter-mirrors" "$2.new" > "$2"
+		rm "$2.new"
+		## Now check that the new mirrorlist has any valid mirrors at all, and clean up files
+		if [ -z "$(cat "$2")" ]; then mv "$2.backup" "$2"; else
+			rm "$2.backup"
+		fi
+	fi
+}
+
+UpdateArchMirrors() {
+	## Download up to date mirrorlist and uncomment mirrors
+	curl -s "https://archlinux.org/mirrorlist/?country=all&protocol=https&ip_version=4&ip_version=6&use_mirror_status=on" | sed -e 's/^#Server/Server/' -e '/^#/d' > /etc/pacman.d/mirrorlist.download
+	## Check that mirrorlist has downloaded successfully
+	if [ -z "$(cat /etc/pacman.d/mirrorlist.download)" ]; then rm /etc/pacman.d/mirrorlist.download; else
+		## Back up original mirrorlist
+		cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+		## Rate mirrors
+		mv /etc/pacman.d/mirrorlist.download /etc/pacman.d/mirrorlist
+		rate-mirrors --allow-root --disable-comments --save /etc/pacman.d/mirrorlist.new arch
+		## Filter invalid mirrors from mirrorlist
+		"$SCRIPT_DIR/../system-scripts/filter-mirrors" /etc/pacman.d/mirrorlist.new > /etc/pacman.d/mirrorlist
+		rm /etc/pacman.d/mirrorlist.new
+		## Now check that the new mirrorlist has any valid mirrors at all, and clean up files
+		if [ -z "$(cat /etc/pacman.d/mirrorlist)" ]; then mv /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist; else
+			rm /etc/pacman.d/mirrorlist.backup
+		fi
+	fi
+}
+
+UpdateChaoticMirrors() {
+	## Download mirrorlist from Github
+	curl -s "https://raw.githubusercontent.com/chaotic-aur/pkgbuild-chaotic-mirrorlist/main/mirrorlist" > /etc/pacman.d/chaotic-mirrorlist.new
+	## Check that mirrorlist actually got updated before overwriting, in case of errors
+	if [ -z "$(cat /etc/pacman.d/chaotic-mirrorlist.new)" ]; then rm /etc/pacman.d/chaotic-mirrorlist.new; else
+		mv /etc/pacman.d/chaotic-mirrorlist.new /etc/pacman.d/chaotic-mirrorlist
+		## Rate mirrors
+		rate-mirrors --allow-root --disable-comments --save /etc/pacman.d/chaotic-mirrorlist chaotic-aur
+	fi
+}
+UpdateCachyOSMirrors() {
+	## Download mirrorlist from Github
+	curl -s "https://raw.githubusercontent.com/CachyOS/CachyOS-PKGBUILDS/master/cachyos-mirrorlist/cachyos-mirrorlist" > /etc/pacman.d/cachyos-mirrorlist.new
+	## Check that mirrorlist actually got updated before overwriting, in case of errors
+	if [ -z "$(cat /etc/pacman.d/cachyos-mirrorlist.new)" ]; then rm /etc/pacman.d/cachyos-mirrorlist.new; else
+		mv /etc/pacman.d/cachyos-mirrorlist.new /etc/pacman.d/cachyos-mirrorlist
+		## Rate mirrors
+		rate-mirrors --allow-root --disable-comments --save /etc/pacman.d/cachyos-mirrorlist cachyos
+	fi
+}
+#UpdateCachyOSV3Mirrors() {
+#	## Download mirrorlist from Github and rate mirrors
+#	curl -s "https://raw.githubusercontent.com/CachyOS/CachyOS-PKGBUILDS/master/cachyos-v3-mirrorlist/cachyos-v3-mirrorlist" | \
+#	rate-mirrors --allow-root --disable-comments cachyos | \
+#	sed "s/\$arch/x86_64_v3/g" > \
+#	/etc/pacman.d/cachyos-v3-mirrorlist.new
+#	## Check that mirrorlist actually got updated before overwriting, in case of errors
+#	[ ! -z "$(cat /etc/pacman.d/cachyos-v3-mirrorlist.new)" ] && \
+#	mv /etc/pacman.d/cachyos-v3-mirrorlist.new /etc/pacman.d/cachyos-v3-mirrorlist || \
+#	rm /etc/pacman.d/cachyos-v3-mirrorlist.new
+#}
+#UpdateCachyOSV4Mirrors() {
+#	## Download mirrorlist from Github and rate mirrors
+#	curl -s "https://raw.githubusercontent.com/CachyOS/CachyOS-PKGBUILDS/master/cachyos-v4-mirrorlist/cachyos-v4-mirrorlist"
+#	rate-mirrors --allow-root --disable-comments cachyos | \
+#	sed "s/\$arch/x86_64_v4/g" > \
+#	/etc/pacman.d/cachyos-v4-mirrorlist.new
+#	## Check that mirrorlist actually got updated before overwriting, in case of errors
+#	[ ! -z "$(cat /etc/pacman.d/cachyos-v4-mirrorlist.new)" ] && \
+#	mv /etc/pacman.d/cachyos-v4-mirrorlist.new /etc/pacman.d/cachyos-v4-mirrorlist || \
+#	rm /etc/pacman.d/cachyos-v4-mirrorlist.new
+#}
+
+UpdateAllMirrors() {
+	echo "Updating all pacman mirrors now..."
+	(UpdateMirror "https://archlinux.org/mirrorlist/?country=all&protocol=https&ip_version=4&ip_version=6&use_mirror_status=on" \
+	"/etc/pacman.d/mirrorlist" "arch") &
+	(cat /etc/pacman.conf | grep -v "^#" | grep "\[chaotic-aur]" &> /dev/null && \
+	UpdateMirror "https://raw.githubusercontent.com/chaotic-aur/pkgbuild-chaotic-mirrorlist/main/mirrorlist" \
+	"/etc/pacman.d/chaotic-mirrorlist" "chaotic-aur") &
+	(cat /etc/pacman.conf | grep -v "^#" | grep "\[cachyos]" &> /dev/null && \
+	UpdateMirror "https://raw.githubusercontent.com/CachyOS/CachyOS-PKGBUILDS/master/cachyos-mirrorlist/cachyos-mirrorlist" \
+	"/etc/pacman.d/cachyos-mirrorlist" "cachyos") &
+	(cat /etc/pacman.conf | grep -v "^#" | grep "\[cachyos-v3]" &> /dev/null && \
+	UpdateMirror "https://raw.githubusercontent.com/CachyOS/CachyOS-PKGBUILDS/master/cachyos-mirrorlist/cachyos-v3-mirrorlist" \
+	"/etc/pacman.d/cachyos-v3-mirrorlist" "cachyos") &
+	(cat /etc/pacman.conf | grep -v "^#" | grep "\[cachyos-v4]" &> /dev/null && \
+	UpdateMirror "https://raw.githubusercontent.com/CachyOS/CachyOS-PKGBUILDS/master/cachyos-mirrorlist/cachyos-v4-mirrorlist" \
+	"/etc/pacman.d/cachyos-v4-mirrorlist" "cachyos") &
+}
+
+case $1 in
+	auto)
+		RootCheck
+		mkdir -p /etc/arch-tweaks
+		echo "1" > /etc/arch-tweaks/auto-mirrorlist-update
+		echo "Auto pacman mirrorlist update enabled."
+		UpdateAllMirrors;;
+	manual)
+		RootCheck
+		mkdir -p /etc/arch-tweaks
+		echo "0" > /etc/arch-tweaks/auto-mirrorlist-update
+		echo "Auto pacman mirrorlist disabled.";;
+	update)
+		if [ -z "$2" ]; then RootCheck; UpdateAllMirrors; else
+			case $2 in
+				archlinux) UpdateArchMirrors &;;
+				chaotic-aur) UpdateChaoticMirrors &;;
+				cachyos) UpdateCachyOSMirrors &;;
+				#cachyos-v3) UpdateCachyOSV3Mirrors &;;
+				#cachyos-v4) UpdateCachyOSV4Mirrors &;;
+				*)
+					echo "[ERROR] Not supported - supported repositories are: archlinux cachyos cachyos-v3 cachyos-v4 chaotic-aur"
+					exit 1;;
+			esac
+		fi;;
+	help|--help|-h) Help;;
+	*)
+		echo "[ERROR] Unknown command, run \"$(basename $0) help\" for a list of commands"
+		exit 1;;
+esac

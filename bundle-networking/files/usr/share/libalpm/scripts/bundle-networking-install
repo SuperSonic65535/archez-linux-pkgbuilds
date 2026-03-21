@@ -1,0 +1,12 @@
+#!/bin/sh
+## Configure Avahi for local hostname resolution if not configured already
+sed -i "s/mymachines resolve/mymachines mdns_minimal [NOTFOUND=return] resolve/g" /etc/nsswitch.conf
+
+## Disable and block services that interfere with other network services
+systemctl --now disable systemd-resolved systemd-networkd &> /dev/null
+systemctl --now mask systemd-resolved systemd-networkd &> /dev/null
+
+## Enable networking services
+systemctl --now enable NetworkManager avahi-daemon &> /dev/null
+
+exit 0

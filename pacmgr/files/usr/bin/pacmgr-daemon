@@ -1,0 +1,368 @@
+#!/bin/sh
+[ $(whoami) == "root" ] && echo "Root/sudo is restricted. Run this script with a seperate administrator (wheel group member) account." && exit 1
+! (groups $(whoami) | grep wheel &> /dev/null) && echo "$(whoami) is not an administrator (wheel group member). Exiting..." && exit 1
+
+[ -z "$DESKTOP_SESSION" ] && desktopSession="unknown" || desktopSession="$DESKTOP_SESSION"
+[ -z "$XDG_SESSION_DESKTOP" ] && xdgSessionDesktop="unknown" || xdgSessionDesktop="$XDG_SESSION_DESKTOP"
+
+# Detect dialog backend
+[ -z "$DESKTOP_SESSION" ] && desktopSession="unknown" || desktopSession="$DESKTOP_SESSION"
+[ -z "$XDG_SESSION_DESKTOP" ] && xdgSessionDesktop="unknown" || xdgSessionDesktop="$XDG_SESSION_DESKTOP"
+if [ "$desktopSession" == "plasma" ] || [ "$xdgSessionDesktop" == "KDE" ]; then
+	if [ -x /bin/kdialog ] || [ -x /usr/bin/kdialog ]; then dialogBackend="kdialog"
+	elif [ -x /bin/zenity ] || [ -x /usr/bin/zenity ]; then dialogBackend="zenity"
+	elif [ -x /bin/dialog ] || [ -x /usr/bin/dialog ]; then dialogBackend="dialog"
+	else echo "[ERROR] Missing \"dialog\", install it with \"sudo pacman -S dialog\""; exit 1; fi;
+else
+	if [ ! -z "$DISPLAY" ] || [ ! -z "$WAYLAND_DISPLAY" ]; then
+		if [ -x /bin/kdialog ] || [ -x /usr/bin/kdialog ]; then dialogBackend="kdialog"
+		elif [ -x /bin/zenity ] || [ -x /usr/bin/zenity ]; then dialogBackend="zenity"
+		elif [ -x /bin/dialog ] || [ -x /usr/bin/dialog ]; then dialogBackend="dialog"
+		else echo "[ERROR] Missing \"dialog\", install it with \"sudo pacman -S dialog\""; exit 1; fi;
+	else
+		[ ! -x /bin/dialog ] && [ ! -x /usr/bin/dialog ] && \
+		echo "[ERROR] Missing \"dialog\", install it with \"sudo pacman -S dialog\"" && exit 1
+		dialogBackend="dialog"
+	fi
+fi
+
+# Detect terminal emulator
+if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then terminalEmulator="none"; else
+	#for binFile in konsole xfce4-terminal gnome-terminal kgx qterminal xterm uxterm cosmic-term cutefish-terminal io.elementary.terminal mate-terminal lxterminal terminology fingerterm kitty alacritty urxvt terminator foot ghostty sakura rio station zutty wezterm deepin-terminal deepin-terminal-gtk x-terminal-emulator cool-retro-term guake; do
+	for binFile in konsole xfce4-terminal gnome-terminal kgx qterminal xterm uxterm; do
+		if ([ -x "/bin/$binFile" ] || [ -x "/usr/bin/$binFile" ]) then terminalEmulator="$binFile"; fi
+	done; [ -z "$terminalEmulator" ] && terminalEmukator="none"
+fi
+
+# Detect app store
+if [ "$desktopSession" == "plasma" ] || [ "$xdgSessionDesktop" == "KDE" ]; then
+	if [ -x /bin/pamac-manager ] || [ -x /usr/bin/pamac-manager ]; then AppStore="pamac-manager"
+	elif [ -x /bin/plasma-discover ] || [ -x /usr/bin/plasma-discover ]; then AppStore="plasma-discover"
+	elif [ -x /bin/gnome-software ] || [ -x /usr/bin/gnome-software ]; then AppStore="gnome-software"
+	elif [ -x /bin/cosmic-store ] || [ -x /usr/bin/cosmic-store ]; then AppStore="cosmic-store"
+	elif [ -x /bin/octopi ] || [ -x /usr/bin/octopi ]; then AppStore="octopi"
+	else echo "[ERROR] Could not find an app store."; AppStore="none"; fi
+else
+	if [ -x /bin/pamac-manager ] || [ -x /usr/bin/pamac-manager ]; then AppStore="pamac-manager"
+	elif [ -x /bin/plasma-discover ] || [ -x /usr/bin/plasma-discover ]; then AppStore="plasma-discover"
+	elif [ -x /bin/gnome-software ] || [ -x /usr/bin/gnome-software ]; then AppStore="gnome-software"
+	elif [ -x /bin/cosmic-store ] || [ -x /usr/bin/cosmic-store ]; then AppStore="cosmic-store"
+	elif [ -x /bin/octopi ] || [ -x /usr/bin/octopi ]; then AppStore="octopi"
+	else echo "[ERROR] Could not find an app store."; AppStore="none"; fi
+fi
+
+# Detect config path
+if [ ! -z "$HOME" ] && [ -w "$HOME" ]; then
+	ConfigPath="$HOME/.config/pacmgr"; LocalPath="$HOME/.local/share/pacmgr"
+elif [ -w "/home/$(whoami)" ]; then
+	ConfigPath="/home/$(whoami)/.config/pacmgr"; LocalPath="/home/$(whoami)/.local/share/pacmgr"
+else echo "[ERROR] Could not find home directory"; exit 1; fi
+
+# Read config file and set defaults
+[ -d "$ConfigPath" ] && [ -f "$ConfigPath/pacmgr.conf" ] && . "$ConfigPath/pacmgr.conf"
+[ -z "$DelayStart" ] && DelayStart=0
+[ -z "$DelayStartUnit" ] && DelayStartUnit="seconds"
+[ -z "$CheckFreq" ] && CheckFreq=1
+[ -z "$CheckFreqUnit" ] && CheckFreqUnit="days"
+[ -z "$Notify" ] && Notify=true
+[ -z "$News" ] && News=true
+[ -z "$AutoDL" ] && AutoDL=false
+[ -z "$AutoUpd" ] && AutoUpd="off"
+[ -z "$ManualUpdate" ] && ManualUpdate="ask"
+[ -z "$CleanCache" ] && CleanCache=custom
+[ -z "$CleanCacheFreq" ] && CleanCacheFreq=1
+[ -z "$CleanCacheUnit" ] && CleanCacheUnit=months
+[ -z "$Aur" ] && Aur=false
+
+Menu() {
+	case $dialogBackend in
+		kdialog) kdialog --title "Update settings" --menu "Select an option:" "$@";;
+		dialog) dialog --stdout --title "Update settings" --menu "Select an option:" 10 40 0 "$@";;
+		zenity) zenity --list --title "Update settings" --text="Select an option:" --column=Option --column=Description "$@" 2> /dev/null;;
+	esac
+}
+UpdateAUR() {
+	if [ $Notify == true ]; then
+		if [ $AutoUpd == "off" ]; then
+			if [ $NumAur -gt 0 ]; then
+				notify-send --app-name "Software update" -t 0 --icon update-busy \
+				"Installing $NumUpdates update(s) ($NumPkg + $NumAur AUR)" "Please keep your computer powered on. This might take a while, depending on the speed of your device and the number of updates."
+			else
+				notify-send --app-name "Software update" -t 0 --icon update-busy \
+				"Installing $NumPkg update(s)" "Please keep your computer powered on. This shouldn't take long."
+			fi
+		else
+			notify-send --app-name "Software update" --icon update-busy \
+			"Updating $NumAur AUR package(s)" "Please keep your computer powered on. This might take a while, depending on the speed of your device and the number of updates."
+		fi
+	fi
+	installMode="$1"; [ -z "$installMode" ] && installMode="silent"
+	case $installMode in
+		silent) yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu; PacStatus=$?;;
+		terminal)
+			case $terminalEmulator in
+				konsole)
+					konsole --hide-tabbar --hide-menubar -e "/usr/bin/bash -c 'yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				xfce4-terminal)
+					xfce4-terminal --minimize --hide-menubar --hide-toolbar --show-scrollbar \
+					-I update-none -T "System update" -e "/usr/bin/bash -c 'yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				gnome-terminal)
+					gnome-terminal --hide-menubar --name "System update" -e "/usr/bin/bash -c 'yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				kgx)
+					kgx --title="System update" -e "/usr/bin/bash -c 'yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				qterminal)
+					qterminal -e "/usr/bin/bash -c 'yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				xterm)
+					xterm -xb -e "/usr/bin/bash -c 'yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				uxterm)
+					uxterm -T "System update" -e "/usr/bin/bash -c 'yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				none) yay --noconfirm --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu; PacStatus=$?;;
+			esac;;
+		manual)
+			case $terminalEmulator in
+				konsole)
+					konsole --hold --hide-tabbar --hide-menubar -e "/usr/bin/bash -c 'yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				xfce4-terminal)
+					xfce4-terminal --hold --minimize --hide-menubar --hide-toolbar --show-scrollbar \
+					-I update-none -T "System update" -e "/usr/bin/bash -c 'yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				gnome-terminal)
+					gnome-terminal --hide-menubar --name "System update" -e "/usr/bin/bash -c 'yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				kgx)
+					kgx --title="System update" -e "/usr/bin/bash -c 'yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				qterminal)
+					qterminal -e "/usr/bin/bash -c 'yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				xterm)
+					xterm -xb --hold -e "/usr/bin/bash -c 'yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				uxterm)
+					uxterm -T --hold "System update" -e "/usr/bin/bash -c 'yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu'"; PacStatus=$?;;
+				none) yay --answerclean None --answerdiff None --answeredit None --answerupgrade None --removemake --devel --pgpfetch --sudoloop -Syu; PacStatus=$?;;
+			esac;;
+	esac; WriteLastUpdateTime; return $PacStatus
+}
+DownloadUpdates() {
+	[ $Notify == true ] && notify-send ---app-name "Software update" --icon update-busy -t 30 "Downloading $NumPkg update(s)" \
+	"Please keep your computer powered on and connected to the internet. This might take a while, depending on your connection speed and the number of updates."
+	sudo /usr/lib/pacmgr/pacman-download.sh; PacStatus=$?; return $PacStatus
+}
+InstallUpdates() {
+	[ $Notify == true ] && notify-send --app-name "Software update" -t 0 --icon update-none \
+	"Installing $NumPkg update(s)" "Please keep your computer powered on. This shouldn't take long."
+	installMode="$1"; [ -z "$installMode" ] && installMode="silent"
+	case $installMode in
+		silent) sudo /usr/lib/pacmgr/pacman-upgrade.sh; PacStatus=$?;;
+		terminal)
+			case $terminalEmulator in
+				konsole)
+					konsole --hide-tabbar --hide-menubar -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade.sh'"; PacStatus=$?;;
+				xfce4-terminal)
+					xfce4-terminal --minimize --hide-menubar --hide-toolbar --show-scrollbar \
+					-I update-none -T "System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade.sh'"; PacStatus=$?;;
+				gnome-terminal)
+					gnome-terminal --hide-menubar --name "System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade.sh'"; PacStatus=$?;;
+				kgx)
+					kgx --title="System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade.sh'"; PacStatus=$?;;
+				qterminal)
+					qterminal -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade.sh'"; PacStatus=$?;;
+				xterm)
+					xterm -xb -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade.sh'"; PacStatus=$?;;
+				uxterm)
+					uxterm -T "System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade.sh'"; PacStatus=$?;;
+				none) sudo /usr/lib/pacmgr/pacman-upgrade.sh; PacStatus=$?;;
+			esac;;
+		manual)
+			case $terminalEmulator in
+				konsole)
+					konsole --hide-tabbar --hide-menubar -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade-manual.sh'"; PacStatus=$?;;
+				xfce4-terminal)
+					xfce4-terminal --minimize --hide-menubar --hide-toolbar --show-scrollbar \
+					-I update-none -T "System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade-manual.sh'"; PacStatus=$?;;
+				gnome-terminal)
+					gnome-terminal --hide-menubar --name "System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade-manual.sh'"; PacStatus=$?;;
+				kgx)
+					kgx --title="System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade-manual.sh'"; PacStatus=$?;;
+				qterminal)
+					qterminal -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade-manual.sh'"; PacStatus=$?;;
+				xterm)
+					xterm -xb -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade-manual.sh'"; PacStatus=$?;;
+				uxterm)
+					uxterm -T "System update" -e "/usr/bin/bash -c 'sudo /usr/lib/pacmgr/pacman-upgrade-manual.sh'"; PacStatus=$?;;
+				none) sudo /usr/lib/pacmgr/pacman-upgrade.sh; PacStatus=$?;;
+			esac;;
+	esac; WriteLastUpdateTime; return $PacStatus
+}
+LaunchAppStore() {
+	case $AppStore in
+		pamac-manager) /usr/lib/pacmgr/pamac-update.sh;;
+		plasma-discover) plasma-discover;;
+		gnome-software) gnome-software;;
+		cosmic-store) cosmic-store;;
+		octopi) octopi;;
+	esac
+}
+UpdateDialog() {
+	if [ "$ManualUpdate" == "ask" ]; then
+		if [ "$AppStore" != "none" ]; then
+			Choice="$(Menu "silent" "Silent install in background" \
+			"terminal" "Terminal window (automatic install)" \
+			"manual" "Terminal window (manual confirmation)" \
+			"appstore" "Use software centre")"
+		else
+			Choice="$(Menu "silent" "Silent install in background" \
+			"terminal" "Terminal window (automatic install)" \
+			"manual" "Terminal window (manual confirmation)")"
+		fi
+		if [ ! -z "$Choice" ]; then
+			if [ "$Choice" == "appstore" ]; then LaunchAppStore
+			elif [ "$Choice" == "manual" ]; then
+				if [ $Aur == true ]; then UpdateAUR "manual"; PacStatus=$?
+				else InstallUpdates "manual"; PacStatus=$?; fi
+			elif [ "$Choice" == "terminal" ]; then
+				if [ $Aur == true ]; then UpdateAUR "terminal"; PacStatus=$?;
+				else InstallUpdates "terminal"; PacStatus=$?; fi
+			elif [ "$Choice" == "silent" ]; then
+				if [ $Aur == true ]; then UpdateAUR "silent"; PacStatus=$?
+				else InstallUpdates "silent"; PacStatus=$?; fi
+			fi
+		fi
+	elif [ "$ManualUpdate" == "appstore" ]; then LaunchAppStore
+	else
+		if [ $Aur == true ]; then UpdateAUR "$ManualUpdate"; PacStatus=$?;
+		else InstallUpdates "$ManualUpdate"; PacStatus=$?; fi
+		if [ "$PacStatus" -gt 0 ]; then
+			if [ $Notify == true ]; then
+				if [ "$Aur" == true ]; then
+					Action="$(notify-send --urgency=critical --icon data-error \
+					--action=VIEW="Open log" --app-name "Software update" "Error ($PacStatus)" \
+					"An error ($PacStatus) occured while updating AUR software. Check installation log (/var/log/pacman.log) for details.")"
+					[ ! -z "$Action" ] && [ "$Action" == "VIEW" ] && xdg-open /var/log/pacman.log
+				else
+					Action="$(notify-send --urgency=critical --icon data-error \
+					--action=VIEW="Open log" --app-name "Software update" "Error ($PacStatus)" \
+					"An error ($PacStatus) occured while installing updates. Check installation log (/var/log/pacman.log) for details.")"
+					[ ! -z "$Action" ] && [ "$Action" == "VIEW" ] && xdg-open /var/log/pacman.log
+				fi
+			fi
+		else
+			if [ $Notify == true ]; then
+				notify-send --icon data-success --app-name "Software update" "Update complete" "Your system is now up to date."
+			fi
+		fi
+	fi
+}
+WriteLastUpdateTime() {
+	[ ! -d "$LocalPath" ] && mkdir -p "$LocalPath"
+	echo "$(date '+%s')" > "$LocalPath/lastupdate"
+}
+
+## If notifications, auto-download and auto-upgrade are disabled, exit
+[ $Notify == false ] && ([ $AutoDL == false ] || [ $AutoUpd == "off" ]) && \
+echo "Update notifications, auto-download and auto-update disabled. Exiting..." && exit
+
+## Convert DelayStart to seconds
+case $DelayStartUnit in
+	minutes) DelayStart=$(expr $DelayStart \* 60);;
+	hours) DelayStart=$(expr $DelayStart \* 3600);;
+esac
+
+## Find out if the update check interval has passed since the last update
+if [ -d "$LocalPath" ] && [ -f "$LocalPath/lastupdate" ]; then
+	LastUpdate="$(cat "$LocalPath/lastupdate")"
+	if [ ! -z "$LastUpdate" ] && [[ ! "$LastUpdate" =~ [^0-9] ]]; then
+		## Convert CheckFreq to seconds
+		case $CheckFreqUnit in
+			minutes) CheckFreq=$(expr $CheckFreq \* 60);;
+			hours) CheckFreq=$(expr $CheckFreq \* 3600);;
+			days) CheckFreq=$(expr $CheckFreq \* 86400);;
+			weeks) CheckFreq=$(expr $CheckFreq \* 604800);;
+			months) CheckFreq=$(expr $CheckFreq \* 2592000);;
+		esac; CurrentTime="$(date '+%s')"
+		if [ "$(expr $CurrentTime - $LastUpdate)" -lt $(expr $CheckFreq - $DelayStart) ]; then
+			echo "System was updated recently. Exiting..."; exit
+		fi
+	fi
+fi
+## Delay start if start delay is enabled
+[ $DelayStart -gt 0 ] && echo "Waiting $DelayStart seconds..." && sleep $DelayStart
+
+## Check for updates
+echo "Checking for updates..."
+NumPkg=$(checkupdates | wc -l); [ -z "$NumPkg" ] && NumPkg=0
+[ ! -z "$1" ] && ([ "$1" == "--force" ] || [ "$1" == "-f" ]) && NumPkg=999
+if [ $Aur == true ]; then
+	NumAur=$(yay -Qua | wc -l)
+else NumAur=0; fi; [ -z "$NumAur" ] && NumAur=0
+[ ! -z "$1" ] && ([ "$1" == "--force" ] || [ "$1" == "-f" ]) && NumAur=999
+NumUpdates=$(expr $NumPkg + $NumAur)
+if [ $NumUpdates == 0 ]; then echo "System is up to date"; exit; else
+	if [ $NumUpdates == 1 ]; then
+		if [ $NumAur == 0 ]; then UpdateMsg="Update available"
+		else UpdateMsg="Update available (AUR)"; fi
+	else
+		if [ $NumAur == 0 ]; then UpdateMsg="$NumUpdates updates available"
+		elif [ $NumPkg == 0 ]; then UpdateMsg="$NumUpdates updates available (AUR)"
+		else UpdateMsg="$NumUpdates updates available ($NumPkg + $NumAur AUR)"; fi
+	fi
+fi; echo "$UpdateMsg"
+
+# Auto download/update
+PacStatus=0
+if [ $AutoDL == true ] || [ $AutoUpd != off ]; then
+	# Auto download new packages if available
+	if [ $NumPkg -gt 0 ]; then DownloadUpdates; PacStatus=$?; fi
+	if [ $PacStatus -gt 0 ]; then
+		echo "[ERROR] An error occured while downloading updates ($PacStatus)"
+		[ $Notify == true ] && notify-send --urgency=critical --icon data-error --app-name "Software update" \
+		"Error ($PacStatus)" "An error ($PacStatus) occured while downloading updates. Check your internet connection."
+	fi
+
+	# Auto update (background)
+	if [ $AutoUpd == "background" ]; then
+		PacStatus=0
+		if [ $NumPkg -gt 0 ]; then
+			InstallUpdates silent; PacStatus=$?
+		fi
+		if [ $PacStatus -gt 0 ]; then
+			echo "[ERROR] An error occured while installing updates ($PacStatus)"
+			if [ $Notify == true ]; then
+				Action="$(notify-send --urgency=critical --icon data-error \
+				--action=VIEW="Open log" --app-name "Software update" "Error ($PacStatus)" \
+				"An error ($PacStatus) occured while installing updates. Check installation log (/var/log/pacman.log) for details.")"
+				[ ! -z "$Action" ] && [ "$Action" == "VIEW" ] && xdg-open /var/log/pacman.log
+			fi
+		fi
+
+		# Auto AUR update
+		PacStatus=0
+		if [ $Aur == true ] && [ $NumAur -gt 0 ]; then
+			UpdateAUR; PacStatus=$?
+		fi
+		if [ $PacStatus -gt 0 ]; then
+			echo "[ERROR] An error occured while updating AUR software ($PacStatus)"
+			if [ $Notify == true ]; then
+				Action="$(notify-send --urgency=critical --icon data-error \
+				--action=VIEW="Open log" --app-name "Software update" "Error ($PacStatus)" \
+				"An error ($PacStatus) occured while updating AUR software. Check installation log (/var/log/pacman.log) for details.")"
+				[ ! -z "$Action" ] && [ "$Action" == "VIEW" ] && xdg-open /var/log/pacman.log
+			fi
+		fi
+		# Upgrade complete
+		[ $Notify == true ] && [ $PacStatus -gt 0 ] && notify-send --icon data-success \
+		--app-name "Software update" "Update complete" "Your system is now up to date."
+		exit
+	else # Download complete
+		if [ $NumPkg -gt 0 ] && [ $Notify == true ]; then
+			Action="$(notify-send --app-name "Software update" --icon update-medium -wt 0 --action=UPDATE="Update" \
+			"$UpdateMsg" "Click the \"Update\" button or go to Add/Remove Software > Updates.")"
+			[ ! -z "$Action" ] && [ "$Action" == "UPDATE" ] && UpdateDialog
+		fi; exit
+	fi
+fi
+
+## Manual update notification
+Action="$(notify-send --app-name "Software update" --icon update-medium -wt 0 --action=UPDATE="Update" \
+"$UpdateMsg" "Click the \"Update\" button or go to Add/Remove Software > Updates.")"
+[ ! -z "$Action" ] && [ "$Action" == "UPDATE" ] && UpdateDialog; exit
+
+## Show news
+
+## Auto-download

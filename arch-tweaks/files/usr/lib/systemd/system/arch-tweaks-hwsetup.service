@@ -1,0 +1,13 @@
+[Unit]
+Description=Detect and fix OEM specific bugs
+
+[Service]
+Type=oneshot
+Restart=no
+RemainAfterExit=no
+ExecStart=/usr/lib/arch-tweaks/system-scripts/hwfixes
+
+[Install]
+WantedBy=rescue.target
+WantedBy=multi-user.target
+WantedBy=graphical.target

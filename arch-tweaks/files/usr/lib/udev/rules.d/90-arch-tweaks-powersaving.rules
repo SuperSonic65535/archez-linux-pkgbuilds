@@ -1,0 +1,14 @@
+## To override these rules,
+## create a file in /etc/udev/rules.d with the same filename
+## and udev will load that file instead of this one.
+
+# Enable runtime power management for PCI devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{power/control}="auto"
+
+# SATA active link power management and runtime power management
+ACTION=="add", SUBSYSTEM=="scsi_host", ATTR{power/control}="auto", ATTR{link_power_management_policy}="med_power_with_dipm"
+
+# Enable runtime power management for all block devices except external optical drives
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL!="sr*", ATTR{power/control}="auto"
+ACTION=="add|change", KERNEL=="sr*", ATTRS{removable}=="0", ATTR{power/control}="auto"
+ACTION=="add|change", KERNEL=="sr*", ATTRS{removable}=="1", ATTR{power/control}="on"

@@ -1,0 +1,9 @@
+[Unit]
+Description=Prepare system for first boot
+
+[Service]
+Type=oneshot
+ExecStart=/config-first-boot.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Install
+Target = bundle-kde-lite
+
+[Action]
+Description = Configuring KDE Plasma and SDDM
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/bundle-kde-lite-install

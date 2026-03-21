@@ -1,0 +1,7 @@
+## To override these rules,
+## create a file in /etc/udev/rules.d with the same filename
+## and udev will load that file instead of this one.
+
+# Set the HDD spin-down delay to approximately 5 minutes
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTRS{queue/rotational}=="1", RUN+="/usr/bin/hdparm -S 60 -B 120 /dev/%k"
+ACTION=="add|change", KERNEL=="hd[a-z]", ATTRS{queue/rotational}=="1", RUN+="/usr/bin/hdparm -S 60 -B 120 /dev/%k"

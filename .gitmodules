@@ -1,0 +1,12 @@
+[submodule "pkgbuilds/boost1.86"]
+	path = pkgbuilds/boost1.86
+	url = https://aur.archlinux.org/boost1.86.git
+[submodule "pkgbuilds/futura-icon-pack-git"]
+	path = pkgbuilds/futura-icon-pack-git
+	url = https://aur.archlinux.org/futura-icon-pack-git.git
+[submodule "pkgbuilds/koi"]
+	path = pkgbuilds/koi
+	url = https://aur.archlinux.org/koi.git
+[submodule "pkgbuilds/calamares-git"]
+	path = pkgbuilds/calamares-git
+	url = https://aur.archlinux.org/calamares-git.git

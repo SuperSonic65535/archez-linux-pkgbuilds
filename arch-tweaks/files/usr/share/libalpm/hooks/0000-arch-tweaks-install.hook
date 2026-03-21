@@ -1,0 +1,9 @@
+[Trigger]
+Type = Package
+Operation = Install
+Target = arch-tweaks
+
+[Action]
+Description = Configuring arch-tweaks
+When = PostTransaction
+Exec = /usr/lib/arch-tweaks/system-scripts/arch-tweaks-install

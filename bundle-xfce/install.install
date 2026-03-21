@@ -1,0 +1,5 @@
+post_install() {
+    rm -f /etc/systemd/system/display-manager.service &> /dev/null
+    systemctl enable lightdm &> /dev/null
+    echo "[ATTENTION] LightDM (user login manager GUI) has been enabled. To start LightDM, reboot your device or run the command \"sudo systemctl start lightdm\"."
+}

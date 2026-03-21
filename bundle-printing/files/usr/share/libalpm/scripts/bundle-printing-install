@@ -1,0 +1,12 @@
+#!/bin/sh
+## Configure Avahi for local hostname resolution if not configured already
+sed -i "s/mymachines resolve/mymachines mdns_minimal [NOTFOUND=return] resolve/g" /etc/nsswitch.conf
+
+## Disable and block services that interfere with Avahi
+systemctl --now disable systemd-resolved &> /dev/null
+systemctl --now mask systemd-resolved &> /dev/null
+
+## Enable print services
+systemctl --now enable cups.socket cups-browsed ipp-usb saned.socket avahi-daemon &> /dev/null
+
+exit 0
