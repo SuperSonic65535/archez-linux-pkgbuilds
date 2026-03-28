@@ -1,4 +1,4 @@
-# Maintainer: Dankcuddlybear <dankcuddlybear@protonmail.com>
+# Maintainer: SuperSonic65535 <SuperSonic65535@proton.me>
 pkgname=bundle-intel-gpu
 replaces=(intel-gpu-meta)
 pkgver=$(date +%Y.%-m.%-d)

@@ -1,4 +1,4 @@
-# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+# Maintainer: SuperSonic65535 <SuperSonic65535@proton.me>
 pkgname=bundle-filesystems
 replaces=(filesystems-meta)
 pkgver=$(date +%Y.%-m.%-d)

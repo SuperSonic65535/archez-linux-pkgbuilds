@@ -1,0 +1,6 @@
+post_upgrade() {
+	if [ $(vercmp 2026.3.21-75438 $2) -ge 0 ]; then
+		sed -i "s/\[zestiso\]/\[archez\]/g" /etc/pacman.conf
+		sed -i "s|https://raw.githubusercontent.com/SuperSonic65535/zestiso-repo/main/|https://raw.githubusercontent.com/SuperSonic65535/archez-linux-repo/main/|g" /etc/pacman.conf
+	fi
+}
