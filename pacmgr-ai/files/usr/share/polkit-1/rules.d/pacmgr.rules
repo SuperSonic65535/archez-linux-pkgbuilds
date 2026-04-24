@@ -1,0 +1,11 @@
+/* Allow users in the wheel group to execute pacman via the pacmgr update daemon without a password
+   Copy this file to /etc/polkit-1/rules.d/ and remove the comments ( /* and */ ) from the code below. */
+
+/*
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.archlinux.pacmgr.pkexec.pacman" &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
+*/

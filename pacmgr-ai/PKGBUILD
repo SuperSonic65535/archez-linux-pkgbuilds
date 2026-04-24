@@ -1,0 +1,27 @@
+# Maintainer: Dankcuddlybear <dankcuddlybear@proton.me>
+pkgname=pacmgr-ai
+pkgver=$(date +%Y.%-m.%-d)
+pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date +%-H)))
+pkgdesc='EXPERIMENTAL GUI Configurable update manager for pacman with update alerts, automatic downloads and installs - AI generated GTK4 version made with Google Gemini 3 Pro'
+arch=(any)
+url='https://github.com/dankcuddlybear/zestiso'
+conflicts=('pacmgr')
+depends=(
+	gtk4
+	libappindicator-gtk3
+	pacman
+	pacman-contrib
+	polkit
+	python
+	python-gobject
+	vte4
+	yay
+)
+optdepends=(
+	'pacnews: Read news for installed packages before updating'
+)
+package() {
+	cp -r "$srcdir/../files/usr" "$pkgdir"
+	"$srcdir/../set-default-permissions.sh" "$pkgdir"
+	chmod +x "$pkgdir/usr/lib/pacmgr"/*.py
+}

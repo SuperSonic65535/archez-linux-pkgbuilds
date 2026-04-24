@@ -1,0 +1,10 @@
+pacmgr/
+├── pacmgr-daemon.py
+├── pacmgr-control-panel.py
+├── pacmgr/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── terminal.py
+│   └── notifications.py
+└── systemd/
+    └── pacmgr.service

@@ -5,6 +5,7 @@ pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date 
 pkgdesc='EXPERIMENTAL GUI Configurable update manager for pacman with update alerts, automatic downloads and installs'
 arch=(any)
 url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+conflicts=('pacmgr-ai')
 depends=(
 	dialog
 	libnotify
