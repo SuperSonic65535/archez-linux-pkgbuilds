@@ -5,7 +5,7 @@ pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date 
 pkgdesc='ArchEZ minimal core installation'
 arch=(any)
 url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
-replaces=('zestiso-core')
+replaces=('zestiso-core' 'zestiso-branding')
 depends=(
 	arch-tweaks
 	base
