@@ -1,0 +1,165 @@
+#!/bin/sh
+[ $(whoami) == "root" ] && echo "Root/sudo is restricted. Run this script with a seperate administrator (wheel group member) account." && exit 1
+! (groups $(whoami) | grep wheel &> /dev/null) && echo "$(whoami) is not an administrator (wheel group member). Exiting..." && exit 1
+
+# Detect dialog backend
+[ -z "$DESKTOP_SESSION" ] && desktopSession="unknown" || desktopSession="$DESKTOP_SESSION"
+[ -z "$XDG_SESSION_DESKTOP" ] && xdgSessionDesktop="unknown" || xdgSessionDesktop="$XDG_SESSION_DESKTOP"
+if [ "$desktopSession" == "plasma" ] || [ "$xdgSessionDesktop" == "KDE" ]; then
+	if [ -x /bin/kdialog ] || [ -x /usr/bin/kdialog ]; then dialogBackend="kdialog"
+	elif [ -x /bin/zenity ] || [ -x /usr/bin/zenity ]; then dialogBackend="zenity"
+	elif [ -x /bin/dialog ] || [ -x /usr/bin/dialog ]; then dialogBackend="dialog"
+	else echo "[ERROR] Missing \"dialog\", install it with \"sudo pacman -S dialog\""; exit 1; fi;
+else
+	if [ ! -z "$DISPLAY" ] || [ ! -z "$WAYLAND_DISPLAY" ]; then
+		if [ -x /bin/kdialog ] || [ -x /usr/bin/kdialog ]; then dialogBackend="kdialog"
+		elif [ -x /bin/zenity ] || [ -x /usr/bin/zenity ]; then dialogBackend="zenity"
+		elif [ -x /bin/dialog ] || [ -x /usr/bin/dialog ]; then dialogBackend="dialog"
+		else echo "[ERROR] Missing \"dialog\", install it with \"sudo pacman -S dialog\""; exit 1; fi;
+	else
+		[ ! -x /bin/dialog ] && [ ! -x /usr/bin/dialog ] && \
+		echo "[ERROR] Missing \"dialog\", install it with \"sudo pacman -S dialog\"" && exit 1
+		dialogBackend="dialog"
+	fi
+fi
+
+## Detect config path
+if [ ! -z "$HOME" ] && [ -w "$HOME" ]; then configPath="$HOME/.config/pacmgr"
+elif [ -w "/home/$(whoami)" ]; then configPath="/home/$(whoami)/.config/pacmgr"
+else echo "[ERROR] Could not find home directory"; exit 1; fi
+
+Menu() {
+	case $dialogBackend in
+		kdialog) kdialog --title "Update settings" --menu "Select an option:" "$@";;
+		dialog) dialog --stdout --title "Update settings" --menu "Select an option:" 10 40 0 "$@";;
+		zenity) zenity --list --title "Update settings" --text="Select an option:" --column=Option --column=Description "$@" 2> /dev/null;;
+	esac
+}
+InputBox() {
+	case $dialogBackend in
+		kdialog) NumInput="$(kdialog --title "Update settings" --inputbox "Enter a number:" "$1")";;
+		dialog) NumInput="$(dialog --stdout --title "Update settings" --inputbox "Enter a number:" 10 40 "$1")";;
+		zenity) NumInput="$(zenity --title="Update settings" --entry --text="Enter a number:" $1)";;
+	esac
+	[ ! -z "$NumInput" ] && [[ ! "$NumInput" =~ [^0-9] ]] && echo "$NumInput"
+}
+WriteConfig() {
+mkdir -p "$configPath"
+echo -e "DelayStart=$DelayStart
+DelayStartUnit=$DelayStartUnit
+CheckFreq=$CheckFreq
+CheckFreqUnit=$CheckFreqUnit
+Notify=$Notify
+News=$News
+AutoDL=$AutoDL
+AutoUpd=$AutoUpd
+ManualUpdate=$ManualUpdate
+CleanCache=$CleanCache
+CleanCacheFreq=$CleanCacheFreq
+CleanCacheUnit=$CleanCacheUnit
+Aur=$Aur" > "$configPath/pacmgr.conf"
+}
+
+[ -d "$configPath" ] && [ -f "$configPath/pacmgr.conf" ] && . "$configPath/pacmgr.conf"
+[ -z "$DelayStart" ] && DelayStart=0
+[ -z "$DelayStartUnit" ] && DelayStartUnit="seconds"
+[ -z "$CheckFreq" ] && CheckFreq=1
+[ -z "$CheckFreqUnit" ] && CheckFreqUnit="days"
+[ -z "$Notify" ] && Notify=true
+[ -z "$News" ] && News=true
+[ -z "$AutoDL" ] && AutoDL=false
+[ -z "$AutoUpd" ] && AutoUpd="off"
+[ -z "$ManualUpdate" ] && ManualUpdate="ask"
+[ -z "$CleanCache" ] && CleanCache=custom
+[ -z "$CleanCacheFreq" ] && CleanCacheFreq=1
+[ -z "$CleanCacheUnit" ] && CleanCacheUnit=months
+[ -z "$Aur" ] && Aur=false
+
+while true; do
+	if [ "$CleanCache" == "custom" ]; then
+		CleanCacheStr="after $CleanCacheFreq $CleanCacheUnit"
+	else CleanCacheStr="$CleanCache"; fi
+	Choice="$(
+		Menu \
+		"f" "Check every: ${CheckFreq} ${CheckFreqUnit}" \
+		"d" "Startup delay: ${DelayStart} ${DelayStartUnit}" \
+		"a" "Notifications: $Notify" \
+		"n" "Show news: $News" \
+		"l" "Auto download: $AutoDL" \
+		"u" "Auto update: $AutoUpd" \
+		"m" "Manual update: $ManualUpdate" \
+		"c" "Clean cache: $CleanCacheStr" \
+		"A" "Include AUR: $Aur" \
+		"s" "Save changes"
+	)"
+	if [ -z "$Choice" ]; then exit 0
+	else
+		case $Choice in
+			f) # Update check frequency
+				while true; do
+					case "$(Menu "f" "Frequency: $CheckFreq" "u" "Unit: $CheckFreqUnit" "d" "Done")" in
+						f)
+							Choice_CheckFreq="$(InputBox "$CheckFreq")"
+							if [ ! -z "$Choice_CheckFreq" ]; then
+								CheckFreq="$Choice_CheckFreq"
+							fi;;
+						u)
+							Choice_CheckFreqUnit="$(Menu "seconds" "Seconds" "minutes" "Minutes" "hours" "Hours" "days" "Days" "weeks" "Weeks" "months" "Months")"
+							if [ ! -z "$Choice_CheckFreqUnit" ]; then
+								CheckFreqUnit="$Choice_CheckFreqUnit"
+							fi;;
+						d|*) break;;
+					esac
+				done;;
+			d) # Update daemon startup delay
+				while true; do
+					case "$(Menu "d" "Delay: $DelayStart" "u" "Unit: $DelayStartUnit" "D" "Done")" in
+						d)
+							Choice_DelayStart="$(InputBox "$DelayStart")"
+							if [ ! -z "$Choice_DelayStart" ]; then
+								DelayStart="$Choice_DelayStart"
+							fi;;
+						u)
+							Choice_DelayStartUnit="$(Menu "seconds" "Seconds" "minutes" "Minutes" "hours" "Hours")"
+							if [ ! -z "$Choice_DelayStartUnit" ]; then
+								DelayStartUnit="$Choice_DelayStartUnit"
+							fi;;
+						D|*) break;;
+					esac
+				done;;
+			a) # Show update notifications
+				[ $Notify == true ] && Notify=false || Notify=true;;
+			n) # Show news
+				[ $News == true ] && News=false || News=true;;
+			l) # Auto download
+				[ $AutoDL == true ] && AutoDL=false || AutoDL=true;;
+			u) # Auto update
+				Choice_AutoUpd="$(Menu "off" "Do not auto-update" "shutdown" "Update before shutdown" "background" "Update in background")"
+				[ ! -z "$Choice_AutoUpd" ] && AutoUpd="$Choice_AutoUpd";;
+			m) # Manual update
+				Choice_ManualUpdate="$(Menu "ask" "Ask every time" "appstore" "Use app store" "silent" "Silent install in background" "terminal" "Terminal window (automatic install)" "manual" "Terminal window (manual confirmation)"   )"
+				[ ! -z "$Choice_ManualUpdate" ] && ManualUpdate="$Choice_ManualUpdate";;
+			c) # Clean cache frequency
+				while true; do
+					case "$(Menu "c" "Clean cache: $CleanCache" "f" "Frequency: $CleanCacheFreq" "u" "Unit: $CleanCacheUnit" "d" "Done")" in
+						c)
+						Choice_CleaneCache="$(Menu "custom" "After custom time limit" "always" "Always clean cache" "never" "Do not clean cache")"
+						[ ! -z $Choice_CleaneCache ] && CleanCache="$Choice_CleaneCache";;
+						f)
+							Choice_CleanCacheFreq="$(InputBox "$CleanCacheFreq")"
+							if [ ! -z "$Choice_CleanCacheFreq" ]; then
+								CleanCacheFreq="$Choice_CleanCacheFreq"
+							fi;;
+						u)
+							Choice_CleanCacheUnit="$(Menu "days" "Days" "weeks" "Weeks" "months" "Months" "years" "Years")"
+							if [ ! -z "$Choice_CleanCacheUnit" ]; then
+								CleanCacheUnit="$Choice_CleanCacheUnit"
+							fi;;
+						d|*) break;;
+					esac
+				done;;
+			A) # Include AUR
+				[ $Aur == true ] && Aur=false || Aur=true;;
+			s) # Save changes
+				WriteConfig; exit;;
+esac; fi; done; exit
