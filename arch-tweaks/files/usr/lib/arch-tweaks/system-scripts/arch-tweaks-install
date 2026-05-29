@@ -1,6 +1,8 @@
 #!/bin/sh
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 ## Enable services
-systemctl --now enable fstrim.timer systemd-timesyncd arch-tweaks-hwsetup &> /dev/null
+systemctl enable systemd-timesyncd arch-tweaks-hwsetup &> /dev/null
 
 ## Copy configs
 cp -r /usr/share/arch-tweaks/custom-configs/etc/* /etc/

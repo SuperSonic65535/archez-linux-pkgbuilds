@@ -9,7 +9,6 @@ url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
 depends=(
 	btrfs-progs
 	cryptsetup
-	dmraid
 	dosfstools
 	exfatprogs
 	fscrypt

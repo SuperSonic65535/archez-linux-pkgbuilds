@@ -16,34 +16,6 @@ depends=(
 	systemsettings
 
 )
-#optdepends=(
-#	audiocd-kio
-#	baloo
-#	breeze-plymouth
-#	drkonqi
-#	flatpak-kcm
-#	libappimage
-#	libavif
-#	libheif
-#	libjxl
-#	jxrlib
-#	kdepim-addons
-#	kdeplasma-addons
-#	kinfocenter
-#	ksshaskpass
-#	kwallet-pam
-#	kwalletmanager
-#	kwrited
-#	openjpeg2
-#	plasma-browser-integration
-#	plasma-disks
-#	plasma-firewall
-#	plasma-keyboard
-#	plasma-systemmonitor
-#	plasma-vault
-#	plasma-welcome
-#	plasma-workspace-wallpapers
-#)
 package() {
 	cp -r "$srcdir/../files/usr" "$pkgdir"
 	"$srcdir/../../set-default-permissions.sh" "$pkgdir"

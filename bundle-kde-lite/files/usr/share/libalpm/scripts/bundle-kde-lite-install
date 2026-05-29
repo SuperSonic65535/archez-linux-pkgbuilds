@@ -8,10 +8,16 @@
 #(udevadm info --export-db --no-pager | grep -m 1 -i "Touchscreen" &> /dev/null) && \
 #sed -i "s/DisplayServer=wayland/DisplayServer=x11/g" /etc/sddm.conf.d/wayland.conf
 
-## Disable existing display manager and enable SDDM
-rm -f /etc/systemd/system/display-manager.service &> /dev/null
+## Disable existing display manager and enable display manager
+rm -f /etc/systemd/system/display-manager.service
 systemctl enable plasmalogin &> /dev/null
 echo "[ATTENTION] KDE Plasma Login manager has been enabled."
-echo "            To start Plasma Login, reboot your device"
+echo "            To start Plasma Login, restart your device"
 echo "            or run the command \"sudo systemctl start plasmalogin\""
 echo "            after installation is complete."
+
+## Enable power profiles daemon
+systemctl --now enable power-profiles-daemon &> /dev/null
+echo "[INFO] Power Profiles Daemon has been enabled."
+echo "       This allows you to switch between power-saving, balanced and high-performance profiles."
+echo "       You may need to restart your device for the daemon to take effect."

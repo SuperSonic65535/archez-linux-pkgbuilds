@@ -1,5 +1,6 @@
 post_upgrade() {
-	if [ $(vercmp 2026.3.1-72542 $2) -ge 0 ]; then
+	# Run the install script again if upgrading from specified or older version
+	if [ $(vercmp 2026.5.29-1 $2) -ge 0 ]; then
 		/usr/share/libalpm/scripts/bundle-kde-lite-install
 	fi
 }

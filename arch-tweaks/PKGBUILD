@@ -14,12 +14,10 @@ depends=(
 	hdparm
 	kernel-modules-hook
 	KSMBD-MODULE
-	mkinitcpio
 	networkmanager
 	pacman
 	#rate-mirrors
 	sudo
-	systemd
 	terminus-font
 	wireless-regdb
 )

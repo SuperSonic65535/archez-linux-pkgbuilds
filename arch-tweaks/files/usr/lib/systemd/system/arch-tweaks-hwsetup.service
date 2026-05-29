@@ -8,6 +8,5 @@ RemainAfterExit=no
 ExecStart=/usr/lib/arch-tweaks/system-scripts/hwfixes
 
 [Install]
-WantedBy=rescue.target
 WantedBy=multi-user.target
 WantedBy=graphical.target
