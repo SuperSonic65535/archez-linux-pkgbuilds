@@ -14,7 +14,11 @@ depends=(
 	polkit-kde-agent
 	powerdevil power-profiles-daemon python-gobject
 	systemsettings
-
+)
+optdepends=(
+	'plasmalogin: Default login manager for KDE Plasma'
+	'sddm: Alternative login manager for KDE Plasma and other X11/Wayland environments'
+	'sddm-kcm: KDE Plasma System Settings module for SDDM login manager'
 )
 package() {
 	cp -r "$srcdir/../files/usr" "$pkgdir"

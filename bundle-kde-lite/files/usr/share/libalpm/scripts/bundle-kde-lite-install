@@ -1,20 +1,30 @@
 #!/bin/sh
-## Copy SDDM config
-#mkdir -p /etc/sddm.conf.d &> /dev/null
-#cp -n /usr/share/KDE/bundle-kde-lite/sddm.conf.d/*.conf /etc/sddm.conf.d/
+if [ -f /usr/lib/systemd/system/sddm.service ]; then
+    ## Copy SDDM config
+    #mkdir -p /etc/sddm.conf.d &> /dev/null
+    #cp -n /usr/share/KDE/bundle-kde-lite/sddm.conf.d/*.conf /etc/sddm.conf.d/
 
-## If installed on a tablet or touch screen device,
-## switch SDDM to X11 mode as virtual keyboard does not work on Walyand
-#(udevadm info --export-db --no-pager | grep -m 1 -i "Touchscreen" &> /dev/null) && \
-#sed -i "s/DisplayServer=wayland/DisplayServer=x11/g" /etc/sddm.conf.d/wayland.conf
+    ## If installed on a tablet or touch screen device,
+    ## switch SDDM to X11 mode as virtual keyboard does not work on Walyand
+    #(udevadm info --export-db --no-pager | grep -m 1 -i "Touchscreen" &> /dev/null) && \
+    #sed -i "s/DisplayServer=wayland/DisplayServer=x11/g" /etc/sddm.conf.d/wayland.conf
 
-## Disable existing display manager and enable display manager
-rm -f /etc/systemd/system/display-manager.service
-systemctl enable plasmalogin &> /dev/null
-echo "[ATTENTION] KDE Plasma Login manager has been enabled."
-echo "            To start Plasma Login, restart your device"
-echo "            or run the command \"sudo systemctl start plasmalogin\""
-echo "            after installation is complete."
+    ## Disable existing display manager and enable display manager
+    rm -f /etc/systemd/system/display-manager.service
+    systemctl enable sddm &> /dev/null
+    echo "[ATTENTION] SDDM Login manager has been enabled."
+    echo "            To start SDDM, restart your device"
+    echo "            or run the command \"sudo systemctl start sddm\""
+    echo "            after installation is complete."
+elif [ -f /usr/lib/systemd/system/plasmalogin.service ]; then
+    ## Disable existing display manager and enable display manager
+    rm -f /etc/systemd/system/display-manager.service
+    systemctl enable plasmalogin &> /dev/null
+    echo "[ATTENTION] KDE Plasma Login manager has been enabled."
+    echo "            To start Plasma Login, restart your device"
+    echo "            or run the command \"sudo systemctl start plasmalogin\""
+    echo "            after installation is complete."
+fi
 
 ## Enable power profiles daemon
 systemctl --now enable power-profiles-daemon &> /dev/null

@@ -28,7 +28,6 @@ depends=(bundle-kde-lite
 	kamera
 	kdegraphics-thumbnailers
 	kimageformats libraw
-	kimageformats5
 	libappimage
 	qt5-imageformats
 	qt6-imageformats
@@ -45,7 +44,7 @@ depends=(bundle-kde-lite
 	# Settings
 	flatpak-kcm
 	kmenuedit
-	plasma5-integration kio5-extras
+	plasma5-integration
 	plymouth-kcm
 
 	# Misc

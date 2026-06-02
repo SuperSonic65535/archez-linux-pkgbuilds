@@ -4,6 +4,6 @@ Operation = Install
 Target = bundle-kde-lite
 
 [Action]
-Description = Configuring KDE Plasma and SDDM
+Description = Configuring KDE Plasma
 When = PostTransaction
 Exec = /usr/share/libalpm/scripts/bundle-kde-lite-install

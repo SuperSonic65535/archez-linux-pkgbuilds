@@ -56,10 +56,24 @@ SetPassword() {
 		else kdialog --error "Passwords did not match."; fi
 	done; echo "Finishing setup..."
 }
+SetHostName() {
+	while true; do
+		## Username dialog entry
+		HostName=""; while [ -z "$HostName" ]; do
+			HostName="$(kdialog --inputbox "Please enter a name for your system (hostname).\nEach element of the hostname must be from 1 to 63 characters long and the entire hostname, including the dots, can be at most 253 characters long. Valid characters include letters (a-z/A-Z), digits (0-9), and hyphens (-). A hostname may not start nor end with a hyphen (-).")"
+		done
+
+		## Validation
+		sudo hostnamectl set-hostname $HostName &> /dev/null; case $? in
+			0) break;;
+			*) kdialog --error "Failed to set system name (hostname). Please try a different hostname.";;
+		esac
+	done
+}
 while true; do
 	UserName="$(ls -I live /home | xargs | cut -d ' ' -f 1)"
 	if [ -z "$UserName" ]; then AddUser; else break; fi
-done; SetPassword "$UserName"
+done; SetPassword "$UserName"; SetHostName
 if [ ! -z "$UserName" ]; then
 	sudo mv /config-first-boot.service /etc/systemd/system/config-first-boot.service
 	sudo ln -sfr /etc/systemd/system/config-first-boot.service /etc/systemd/system/multi-user.target.wants/config-first-boot.service
