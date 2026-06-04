@@ -67,7 +67,7 @@ InstallGrub() {
             ## Throw error if no disks found
             [ -z "$SYS_DISKS" ] && ThrowError "Could not find any suitable disk to install bootloader."
             #
-            echo "SYS DISKS: $SYS_DISKS"; exit
+            echo "SYS DISKS: $SYS_DISKS"
             #
             ## Find the parent device for each volume
             PARENTS="unknown"; while [ ! -z "$PARENTS" ]; do

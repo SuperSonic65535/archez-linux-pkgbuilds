@@ -184,7 +184,7 @@ InstallOS() {
 		FileSystem="$(echo "$Partition" | cut -d ';' -f 4)"
 		Label="$(echo "$Partition" | cut -d ';' -f 5)"
 
-		## Format and label partitions
+		## Format partitions
 		sync; if [ "$FileSystem" == "swap" ]; then sudo swapoff "/dev/$DevName"
 		else sudo umount -AfR "/dev/$DevName"; fi
 		if [ "$Format" == "YES" ]; then
@@ -195,7 +195,9 @@ InstallOS() {
 				exfat) sudo mkfs.exfat "/dev/$DevName";;
 				swap) sudo mkswap "/dev/$DevName";;
 			esac
-		fi; if [ ! -z "$Label" ]; then
+		fi
+		## Label partitions
+		if [ ! -z "$Label" ]; then
 			case $FileSystem in
 				ext4) sudo e2label "/dev/$DevName" "$Label";;
 				btrfs) sudo btrfs filesystem label "/dev/$DevName" "$Label";;
@@ -203,12 +205,22 @@ InstallOS() {
 				exfat) sudo exfatlabel "/dev/$DevName" "$Label";;
 				swap) sudo swaplabel -L "$Label" "/dev/$DevName";;
 			esac
-		fi; sync; if [ "$FileSystem" == "swap" ]; then sudo swapon "/dev/$DevName"
+		fi; sync
+		## Set boot flag on /boot partition
+		if [ $MountPoint == "/boot" ] && [ $BootMode == "i386-pc" ]; then
+			BootPartNo="$(echo "$DevName" | sed 's/.*[^0-9]\([0-9]\+\)$/\1/')"
+			BootDisk="$(echo "$DevName" | sed 's/p\?[0-9]\+$//')"
+			sudo sfdisk --activate /dev/$BootDisk $BootPartNo
+		fi
+		## Mount partitions / enable swap
+		if [ "$FileSystem" == "swap" ]; then sudo swapon "/dev/$DevName"
 		else
 			sudo mkdir -p "/mnt${MountPoint}"
 			sudo mount "/dev/$DevName" "/mnt${MountPoint}"
 		fi
-	done; [ "$BootMode" != "i386-pc" ] && sudo mkdir -p /mnt/boot/EFI
+	done
+	## Create EFI directory
+	[ "$BootMode" != "i386-pc" ] && sudo mkdir -p /mnt/boot/EFI
 
 	## Copy rootfs to new root partition
 	echo "Copying rootfs..."
