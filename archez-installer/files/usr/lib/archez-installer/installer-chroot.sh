@@ -91,7 +91,8 @@ pacman --asdeps -D bash gnu-free-fonts iptables-nft lib32-sdl12-compat libglvnd 
 
 ## Remove files needed only by ArchISO
 (pacman -Qi lightdm &> /dev/null) || rm -rf /etc/lightdm
-rm -f /version /etc/mkinitcpio.conf.system /etc/sudoers.d/10-installer
+rm -f /version /etc/mkinitcpio.conf.system /etc/sudoers.d/10-installer /etc/systemd/journald.conf.d/volatile-storage_archiso.conf /etc/systemd/system/getty@tty1.service.d/autologin_archiso.conf /usr/share/polkit-1/rules.d/49-archiso_nopasswd_global.rules
+rmdir /etc/systemd/journald.conf.d /etc/systemd/system/getty@tty1.service.d &> /dev/null
 
 ## Exit gracefully even if errors occurred
 exit 0
