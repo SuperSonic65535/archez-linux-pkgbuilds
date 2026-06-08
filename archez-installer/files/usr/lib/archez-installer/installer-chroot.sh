@@ -9,18 +9,20 @@ chown -R 1024:1024 /home/live
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10_wheel
 
 ## Create mkinitcpio preset
-rm /etc/mkinitcpio.d/*.preset
-KERNEL_NAME="$(ls /boot/vmlinu* | cut -d ' ' -f 1 | cut -c 15-)"
-echo "# mkinitcpio preset file for the '$KERNEL_NAME' package" > /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo "#ALL_config=\"/etc/mkinitcpio.conf\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo "ALL_kver=\"/boot/vmlinuz-$KERNEL_NAME\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo "PRESETS=('default')" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo "#default_config=\"/etc/mkinitcpio.conf\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo "default_image=\"/boot/initramfs-$KERNEL_NAME.img\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo "#default_uki=\"/efi/EFI/Linux/arch-$KERNEL_NAME.efi\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
-echo "#default_options=\"--splash /usr/share/systemd/bootctl/splash-arch.bmp\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+if [ -f /usr/bin/mkinitcpio ]; then
+	rm /etc/mkinitcpio.d/*.preset
+	KERNEL_NAME="$(ls /boot/vmlinu* | cut -d ' ' -f 1 | cut -c 15-)"
+	echo "# mkinitcpio preset file for the '$KERNEL_NAME' package" > /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo "#ALL_config=\"/etc/mkinitcpio.conf\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo "ALL_kver=\"/boot/vmlinuz-$KERNEL_NAME\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo "PRESETS=('default')" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo "#default_config=\"/etc/mkinitcpio.conf\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo "default_image=\"/boot/initramfs-$KERNEL_NAME.img\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo "#default_uki=\"/efi/EFI/Linux/arch-$KERNEL_NAME.efi\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+	echo "#default_options=\"--splash /usr/share/systemd/bootctl/splash-arch.bmp\"" >> /etc/mkinitcpio.d/$KERNEL_NAME.preset
+fi
 
 ## Automatically remove drivers for GPUs not present
 UNNEEDED_PKGS=""
@@ -57,6 +59,10 @@ if [ "$CPU_VENDOR_ID" != "AuthenticAMD" ]; then
 	rm /amd-ucode.img
 else echo "Found AMD CPU"; mv /amd-ucode.img /boot/; fi
 
+## Automatically detect and remove unneeded packages for other hardware
+[ "$(mmcli -L | cut -d ' ' -f 1)" == "No" ] && UNNEEDED_PKGS="$UNNEEDED_PKGS bundle-modemmanager modemmanager"
+
+## Remove packages only needed for ArchISO
 UNNEEDED_PKGS="$UNNEEDED_PKGS mkinitcpio-archiso syslinux archez-archiso-files archez-installer"
 
 ## Check which unneeded packages are still present, and add them to a list to uninstall
@@ -72,10 +78,15 @@ pacman --asexplicit -D kdialog
 sed -i 's/^HoldPkg/#&/' /etc/pacman.conf
 pacman --noconfirm -Rus $PKGS_TO_UNINSTALL
 sed -i '/HoldPkg/s/#//g' /etc/pacman.conf
-pacman --asdeps -D bash gnu-free-fonts iptables-nft lib32-sdl12-compat libglvnd mkinitcpio noto-fonts ntfs-3g qt6-multimedia-gstreamer pacman phonon-qt6-gstreamer-git polkit wireplumber &> /dev/null
 
-## Mkinitcpio/GRUB
-mkinitcpio -P
+## Mark as dependencies
+pacman --asdeps -D bash gnu-free-fonts iptables-nft lib32-sdl12-compat libglvnd noto-fonts ntfs-3g qt6-multimedia-gstreamer pacman phonon-qt6-gstreamer-git polkit wireplumber &> /dev/null
+[ -f /usr/bin/mkinitcpio ] && pacman --asdeps -D mkinitcpio
+[ -f /usr/bin/booster ] && pacman --asdeps -D booster
+
+## InitRAMFS/GRUB
+[ -f /usr/bin/mkinitcpio ] && mkinitcpio -P
+[ -f /usr/bin/booster ] && /usr/lib/booster/regenerate_images
 /usr/lib/arch-tweaks/system-tools/install-grub --install
 
 ## Remove files needed only by ArchISO
