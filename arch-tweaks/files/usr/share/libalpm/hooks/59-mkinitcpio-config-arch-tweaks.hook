@@ -8,6 +8,5 @@ Target = usr/lib/modules/*/vmlinuz
 
 [Action]
 Description = Configure mkinitcpio presets
-Depends = mkinitcpio
 When = PostTransaction
 Exec = /usr/lib/arch-tweaks/system-scripts/mkinitcpio-config

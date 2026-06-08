@@ -26,5 +26,6 @@ if [ -f /usr/bin/mkinitcpio ]; then
 		fi
 	done
 else
-	echo "[ERROR] mkinitcpio not installed"; exit 1
+	echo "mkinitcpio not installed, cleaning files..."
+	rm -r /etc/mkinitcpio.d /etc/mkinitcpio.conf /etc/mkinitcpio.conf.pacsave /boot/initramfs-linux*.img
 fi
