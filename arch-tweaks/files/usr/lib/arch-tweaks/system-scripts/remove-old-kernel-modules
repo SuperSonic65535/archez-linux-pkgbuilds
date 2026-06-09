@@ -31,7 +31,7 @@ fi
 
 # Remove unused mkinitcpio files
 # Remove kernel initcpios from /boot if that kernel is no longer installed
-for INITRAMFS_FILE in $(ls /boot/initramfs-linux*.img); do
+for INITRAMFS_FILE in $(ls /boot/initramfs-linux*.img 2>/dev/null); do
 	INITRAMFS=$(basename $INITRAMFS_FILE)
 	#
 	# Trim text before "linux"
@@ -43,13 +43,13 @@ for INITRAMFS_FILE in $(ls /boot/initramfs-linux*.img); do
 	INITRAMFS=$(echo $INITRAMFS | sed 's/-fallback//')
 	#
 	if [[ " $INSTALLED_KERNELS " != *" $INITRAMFS "* ]]; then
-		rm $INITRAMFS_FILE
+		rm -f $INITRAMFS_FILE
 		echo "Removed $INITRAMFS_FILE"
 	fi
 done
 
 # Remove kernel mkinitcpio presets from /etc/mkinitcpio.d if that kernel is no longer installed
-for PRESET_FILE in $(ls /etc/mkinitcpio.d/*.preset); do
+for PRESET_FILE in $(ls /etc/mkinitcpio.d/*.preset 2>/dev/null); do
 	# Check inside preset to see if a specified kernel does not exist,
 	# if that is the case then delete the preset
 	for KERNEL_FILE in $(cat $PRESET_FILE | grep "_kver="); do
