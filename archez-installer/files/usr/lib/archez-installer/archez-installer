@@ -27,16 +27,18 @@ SelectPartition() {
 		DevName="$(echo "$Output" | cut -d '#' -f 1)"
 		Capacity="$(echo "$Output" | cut -d '#' -f 4)"
 		DevType="$(echo "$Output" | cut -d '#' -f 6)"
-		if [ "$DevType" == "part" ]; then
-			Label="$(lsblk -no label /dev/$DevName)"
-			Description="#-#partition#$DevName:#$Label#[$Capacity]"
-		else Description="Disk#$DevName#[$Capacity]"; fi
+		if [ "$(echo "$DevName" | cut -c 1-4)" != "zram" ]; then
+			if [ "$DevType" == "part" ]; then
+				Label="$(lsblk -no label /dev/$DevName)"
+				Description="#-#Partition#$DevName:#$Label#($Capacity)"
+			else Description="Disk#$DevName#($Capacity)"; fi
 
-		if [ "$ShowOnly" != "all" ]; then
-			(echo "$DevName" | grep "$ShowOnly" &> /dev/null) && \
-			DialogCmd="$DialogCmd \"$DevName\" \"$Description\""
-		elif [ "$ShowType" == "$DevType" ] || [ "$ShowType" == "all" ]; then
-			DialogCmd="$DialogCmd \"$DevName\" \"$Description\""
+			if [ "$ShowOnly" != "all" ]; then
+				(echo "$DevName" | grep "$ShowOnly" &> /dev/null) && \
+				DialogCmd="$DialogCmd \"$DevName\" \"$Description\""
+			elif [ "$ShowType" == "$DevType" ] || [ "$ShowType" == "all" ]; then
+				DialogCmd="$DialogCmd \"$DevName\" \"$Description\""
+			fi
 		fi
 	done; [ "$ShowType" == "all" ] && DialogCmd="$DialogCmd \"\\\$finished\" \"Finished ✅\" " || \
 	DialogCmd="$DialogCmd \"\\\$finished\" \"Go back 🔙\" "
