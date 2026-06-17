@@ -26,5 +26,18 @@ if [ -f /usr/bin/mkinitcpio ]; then
 		fi
 	done
 else
-	rm -rf /etc/mkinitcpio.d /etc/mkinitcpio.conf /etc/mkinitcpio.conf.pacsave /boot/initramfs-linux*.img
+	rm -rf /etc/mkinitcpio.d /etc/mkinitcpio.conf /etc/mkinitcpio.conf.pacsave
+	# Link or copy booster images to initramfs-linux*.img for compatibility with GRUB
+	if [ -f /usr/bin/booster ] && [ ! -f /usr/bin/dracut ] && [ -f /boot/booster-linux*.img ]; then
+		BOOT_FS="$(df -T /boot | grep -m 1 "/dev/" | xargs | cut -d ' ' -f 2)"
+		for BOOSTER_FILE in $(ls /boot/booster-linux*.img); do
+			BOOSTER_FILE="$(basename "$BOOSTER_FILE")"
+			BOOSTER_INITRAMFS="$(echo "$BOOSTER_FILE" | sed 's/booster-linux/initramfs-linux/g')"
+			if [ "$BOOT_FS" == "vfat" ] || [ $BOOT_FS == "exfat" ]; then
+				cp /boot/$BOOSTER_FILE /boot/$BOOSTER_INITRAMFS
+			else
+				ln -sfr /boot/$BOOSTER_FILE /boot/$BOOSTER_INITRAMFS
+			fi
+		done
+	fi
 fi
