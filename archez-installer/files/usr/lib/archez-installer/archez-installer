@@ -27,7 +27,8 @@ SelectPartition() {
 		DevName="$(echo "$Output" | cut -d '#' -f 1)"
 		Capacity="$(echo "$Output" | cut -d '#' -f 4)"
 		DevType="$(echo "$Output" | cut -d '#' -f 6)"
-		if [ "$(echo "$DevName" | cut -c 1-4)" != "zram" ]; then
+		if [ "$(echo "$DevName" | cut -c 1-4)" != "zram" ] && \
+		[ "$(echo "$DevName" | cut -c 1-2)" != "sr" ]; then
 			if [ "$DevType" == "part" ]; then
 				Label="$(lsblk -no label /dev/$DevName)"
 				Description="#-#Partition#$DevName:#$Label#($Capacity)"
@@ -209,7 +210,7 @@ InstallOS() {
 			esac
 		fi; sync
 		## Set boot flag on /boot partition
-		if [ $MountPoint == "/boot" ] && [ $BootMode == "i386-pc" ]; then
+		if [ $MountPoint == "/boot" ]; then
 			BootPartNo="$(echo "$DevName" | sed 's/.*[^0-9]\([0-9]\+\)$/\1/')"
 			BootDisk="$(echo "$DevName" | sed 's/p\?[0-9]\+$//')"
 			sudo sfdisk --activate /dev/$BootDisk $BootPartNo
@@ -303,8 +304,8 @@ while true; do
 
 				InstallationText="$OS_NAME is now ready to be installed.\nThe following changes will now be made:\n\n"
 				[ "$BootMode" == "i386-pc" ] && \
-				InstallationText="${InstallationText}Create new MBR partition table on disk $SelectedDisk\nCreate 512MiB /boot partition on disk $SelectedDisk\n" || \
-				InstallationText="${InstallationText}Create new GPT partition table on disk $SelectedDisk\nCreate 512MiB EFI /boot partition on disk $SelectedDisk\n"
+				InstallationText="${InstallationText}Create new MBR partition table on disk $SelectedDisk\nCreate 256MiB /boot partition on disk $SelectedDisk\n" || \
+				InstallationText="${InstallationText}Create new GPT partition table on disk $SelectedDisk\nCreate 256MiB EFI /boot partition on disk $SelectedDisk\n"
 				[ "$SwapMethod" == "partition" ] && InstallationText="${InstallationText}Create ${SwapSize}MiB swap partition on disk $SelectedDisk\n"
 				InstallationText="${InstallationText}Install $OS_NAME on disk $SelectedDisk\n"
 				[ "$BootMode" == "i386-pc" ] && InstallationText="${InstallationText}Install GRUB bootloader to MBR on disk $SelectedDisk (legacy BIOS mode)" || \
@@ -315,12 +316,12 @@ while true; do
 				echo "Erasing disk $SelectedDisk and creating partitions..."
 				if [ "$BootMode" == "i386-pc" ]; then ## BIOS mode install
 					## Create new MBR and partitions
-					sudo sh -c "(echo 'label: dos'; echo 'start=2048, size=512M, type=EF'; \
+					sudo sh -c "(echo 'label: dos'; echo 'start=2048, size=256M, type=EF'; \
 					[ $SwapMethod == partition ] && echo 'start=, size=${SwapSize}M, type=82'; \
 					echo 'start=, size=, type=83') | sfdisk /dev/$SelectedDisk"
 				else ## UEFI mode install
 					## Create new GPT and partitions
-					sudo sh -c "(echo 'label: gpt'; echo 'start=2048, size=512M, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B'; \
+					sudo sh -c "(echo 'label: gpt'; echo 'start=2048, size=256M, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B'; \
 					[ $SwapMethod == partition ] && echo 'start=, size=${SwapSize}M, type=0657FD6D-A4AB-43C4-84E5-0933C84B4F4F'; \
 					echo 'start=, size=, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4') | sfdisk /dev/$SelectedDisk"
 				fi

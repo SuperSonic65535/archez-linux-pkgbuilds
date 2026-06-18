@@ -2,8 +2,10 @@
 AddUser() {
 	while true; do
 		## Username dialog entry
-		UserName=""; while [ -z "$UserName" ]; do
-			UserName="$(kdialog --inputbox "Please enter a username.\nLetters (upper and lower case), numbers, dashes (-) and underscores (_) are allowed.\nOther characters are NOT allowed.\nThe username may be up to 32 characters long.")"
+		UserName=""; while true; do
+			while [ -z "$UserName" ]; do
+				UserName="$(kdialog --inputbox "Please enter a username.\nLetters (upper and lower case), numbers, dashes (-) and underscores (_) are allowed.\nOther characters are NOT allowed.\nThe username may be up to 32 characters long.")"
+			done; kdialog --yesno "Is the username $UserName correct?" && break || unset $UserName
 		done
 
 		## Validation
@@ -37,6 +39,12 @@ SetPassword() {
 					sudo sed -i "s/^#*[[:space:]]*autologin-user=.*/autologin-user=$UserName/" /etc/lightdm/lightdm.conf
 					#sudo sed -i "s/^#*[[:space:]]*autologin-session=.*/autologin-session=xfce/" /etc/lightdm/lightdm.conf
 					;;
+				plasmalogin)
+					sudo mkdir -p /etc/plasmalogin.conf.d
+					sudo sh -c "echo '[Autologin]' > /etc/plasmalogin.conf.d/autologin.conf"
+					sudo sh -c "echo 'Relogin=false' >> /etc/plasmalogin.conf.d/autologin.conf"
+					sudo sh -c "echo 'Session=plasma' >> /etc/plasmalogin.conf.d/autologin.conf"
+					sudo sh -c "echo 'User=$UserName' >> /etc/plasmalogin.conf.d/autologin.conf";;
 			esac; sudo passwd -d $UserName; break
 		fi
 
@@ -48,7 +56,7 @@ SetPassword() {
 			if (echo "$NewPassword" | sudo passwd --stdin "$UserName"); then
 
 				## Disable display manager autologin
-				sudo rm -f /etc/sddm.conf.d/autologin.conf
+				sudo rm -f /etc/sddm.conf.d/autologin.conf /etc/plasmalogin.conf.d/autologin.conf
 				[ -f /etc/lightdm/lightdm.conf ] && sudo sed -i '/^#/! s/^[[:blank:]]*autologin-user=/#&/' /etc/lightdm/lightdm.conf
 
 				echo "Password for user $UserName has been set."; break
