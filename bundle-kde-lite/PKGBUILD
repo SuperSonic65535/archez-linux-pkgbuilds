@@ -14,6 +14,8 @@ depends=(
 	polkit-kde-agent
 	powerdevil power-profiles-daemon python-gobject
 	systemsettings
+	xdg-desktop-portal-kde
+	xdg-user-dirs
 )
 optdepends=(
 	'plasmalogin: Default login manager for KDE Plasma'

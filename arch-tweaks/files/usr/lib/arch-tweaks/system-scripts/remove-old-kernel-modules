@@ -51,7 +51,7 @@ if [ -f /boot/initramfs-linux*.img ]; then
 		done
 	else # Remove mkinitcpio/dracut initramfs if mkinitcpio/dracut is not installed
 		rm -rf /boot/initramfs-linux*.img
-	done
+	fi
 fi
 
 # Remove kernel mkinitcpio presets from /etc/mkinitcpio.d if that kernel is no longer installed

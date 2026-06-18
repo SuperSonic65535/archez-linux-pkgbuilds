@@ -3,4 +3,9 @@ post_upgrade() {
 	if [ $(vercmp 2026.5.29-1 $2) -ge 0 ]; then
 		/usr/share/libalpm/scripts/bundle-kde-lite-install
 	fi
+	# Deactivate insecure settings in pamac.conf
+	if [ $(vercmp 2026.5.29-1 $2) -ge 0 ] && [ -f /etc/pamac.conf ]; then
+		sed -i '/RemoveUnrequiredDeps/s/^[^#]/#&/' /etc/pamac.conf
+		sed -i '/EnableAUR/s/^[^#]/#&/' /etc/pamac.conf
+	fi
 }
