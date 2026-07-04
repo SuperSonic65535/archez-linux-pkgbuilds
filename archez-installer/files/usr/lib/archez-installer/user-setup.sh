@@ -2,10 +2,9 @@
 AddUser() {
 	while true; do
 		## Username dialog entry
-		UserName=""; while true; do
-			while [ -z "$UserName" ]; do
-				UserName="$(kdialog --inputbox "Please enter a username.\nLetters (upper and lower case), numbers, dashes (-) and underscores (_) are allowed.\nOther characters are NOT allowed.\nThe username may be up to 32 characters long.")"
-			done; kdialog --yesno "Is the username $UserName correct?" && break || unset $UserName
+		UserName=""; while [ -z "$UserName" ]; do
+			UserName="$(kdialog --inputbox "Please enter a username.\nLetters (upper and lower case), numbers, dashes (-) and underscores (_) are allowed.\nOther characters are NOT allowed.\nThe username may be up to 32 characters long.")"
+			if [ ! -z "$UserName" ]; then kdialog --yesno "Is the username $UserName correct?" || unset UserName; fi
 		done
 
 		## Validation
@@ -21,12 +20,13 @@ AddUser() {
 	done
 }
 SetPassword() {
+	DisplayManager="$(basename $(readlink -f /etc/systemd/system/display-manager.service) | cut -d '.' -f 1)"
 	UserName="$1"; while true; do
 		NewPassword="$(kdialog --password "To set a password for $UserName, enter it here:")"
 
 		## Configure display manager autologin
 		if [ -z "$NewPassword" ]; then
-			case $(basename $(readlink -f /etc/systemd/system/display-manager.service) | cut -d '.' -f 1) in
+			case $DisplayManager in
 				sddm)
 					sudo mkdir -p /etc/sddm.conf.d
 					sudo sh -c "echo '[Autologin]' > /etc/sddm.conf.d/autologin.conf"
@@ -40,11 +40,13 @@ SetPassword() {
 					#sudo sed -i "s/^#*[[:space:]]*autologin-session=.*/autologin-session=xfce/" /etc/lightdm/lightdm.conf
 					;;
 				plasmalogin)
-					sudo mkdir -p /etc/plasmalogin.conf.d
-					sudo sh -c "echo '[Autologin]' > /etc/plasmalogin.conf.d/autologin.conf"
-					sudo sh -c "echo 'Relogin=false' >> /etc/plasmalogin.conf.d/autologin.conf"
-					sudo sh -c "echo 'Session=plasma' >> /etc/plasmalogin.conf.d/autologin.conf"
-					sudo sh -c "echo 'User=$UserName' >> /etc/plasmalogin.conf.d/autologin.conf";;
+					sudo sh -c "echo '[Autologin]' > /etc/plasmalogin.conf"
+					sudo sh -c "echo 'Relogin=false' >> /etc/plasmalogin.conf"
+					sudo sh -c "echo 'Session=plasma.desktop' >> /etc/plasmalogin.conf"
+					sudo sh -c "echo 'User=$UserName' >> /etc/plasmalogin.conf"
+					sudo sh -c "echo >> /etc/plasmalogin.conf"
+					sudo sh -c "echo '[Greeter][Wallpaper][org.kde.image][General]' >> /etc/plasmalogin.conf"
+					sudo sh -c "echo 'Image=file:///usr/share/wallpapers/default-wallpaper.png' >> /etc/plasmalogin.conf";;
 			esac; sudo passwd -d $UserName; break
 		fi
 
@@ -56,9 +58,13 @@ SetPassword() {
 			if (echo "$NewPassword" | sudo passwd --stdin "$UserName"); then
 
 				## Disable display manager autologin
-				sudo rm -f /etc/sddm.conf.d/autologin.conf /etc/plasmalogin.conf.d/autologin.conf
-				[ -f /etc/lightdm/lightdm.conf ] && sudo sed -i '/^#/! s/^[[:blank:]]*autologin-user=/#&/' /etc/lightdm/lightdm.conf
-
+				case $DisplayManager in
+					sddm) sudo rm -f /etc/sddm.conf.d/autologin.conf /etc/plasmalogin.conf.d/autologin.conf;;
+					lightdm) [ -f /etc/lightdm/lightdm.conf ] && sudo sed -i '/^#/! s/^[[:blank:]]*autologin-user=/#&/' /etc/lightdm/lightdm.conf;;
+					plasmalogin)
+						sudo sh -c "echo '[Greeter][Wallpaper][org.kde.image][General]' > /etc/plasmalogin.conf"
+						sudo sh -c "echo 'Image=file:///usr/share/wallpapers/default-wallpaper.png' >> /etc/plasmalogin.conf";;
+				esac
 				echo "Password for user $UserName has been set."; break
 			else kdialog --error "Failed to set new password. Please try a different one."; fi
 		else kdialog --error "Passwords did not match."; fi

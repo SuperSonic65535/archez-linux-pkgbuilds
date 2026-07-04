@@ -21,6 +21,9 @@ depends=(
 	terminus-font
 	wireless-regdb
 )
+optdepends=(
+	'aur-scanner: Pre-installation security scan for AUR software'
+)
 package() {
 	cp -r "$srcdir/../files/etc" "$pkgdir"
 	cp -r "$srcdir/../files/usr" "$pkgdir"

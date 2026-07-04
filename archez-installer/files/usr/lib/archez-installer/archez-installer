@@ -14,6 +14,10 @@ if [ -f /sys/firmware/efi/fw_platform_size ]; then
     BootMode="i386-efi" || BootMode="x86_64-efi"
 else BootMode="i386-pc"; fi
 
+
+MsgDone() {
+	kdialog --msgbox "$OS_NAME installation complete. Please restart your computer.\n\nYou will be automatically logged in as the user \"live\" and will be asked to complete the setup.\n\nHave fun, and thanks for using $OS_NAME!"
+}
 SelectPartition() {
 	ShowType="$1"; [ -z "$ShowType" ] && ShowType="all"
 	ShowOnly="$2"; [ -z "$ShowOnly" ] && ShowOnly="all"
@@ -28,6 +32,7 @@ SelectPartition() {
 		Capacity="$(echo "$Output" | cut -d '#' -f 4)"
 		DevType="$(echo "$Output" | cut -d '#' -f 6)"
 		if [ "$(echo "$DevName" | cut -c 1-4)" != "zram" ] && \
+		[ "$(echo "$DevName" | cut -c 1-4)" != "loop" ] && \
 		[ "$(echo "$DevName" | cut -c 1-2)" != "sr" ]; then
 			if [ "$DevType" == "part" ]; then
 				Label="$(lsblk -no label /dev/$DevName)"
@@ -64,16 +69,8 @@ PartitionSelection() {
 			if [ "$DevType" == "disk" ]; then
 				Selection="$(kdialog --menu "Disk $DevName [$Capacity]" 1 "Manage partitions (will reset partition selection)" 2 "Go back ❌")"
 				if [ -z "$Selection" ] || [ "$Selection" == 2 ]; then false; else
-					PartitionEditors=""
-					[ -f /usr/bin/fdisk ] && PartitionEditors="$PartitionEditors fdisk FDisk"
-					[ -f /usr/bin/gdisk ] && PartitionEditors="$PartitionEditors gdisk GDisk"
-					[ -f /usr/bin/cfdisk ] && PartitionEditors="$PartitionEditors cfdisk CFDisk"
-					if [ -f /usr/bin/gparted ]; then
-						Selection="$(kdialog --menu "Any changes to partitions will take effect immediately. Make sure you have backed up any important files before proceeding. When finished, partition selection will be reset.\n\nSelect a partition editor:" gparted "GParted (recommended)" $PartitionEditors 0 "Go back ❌")"
-					else
-						Selection="$(kdialog --menu "Any changes to partitions will take effect immediately. Make sure you have backed up any important files before proceeding. When finished, partition selection will be reset.\n\nSelect a partition editor:" $PartitionEditors 0 "Go back ❌")"
-					fi
-					[ ! -z "$Selection" ] && [ "$Selection" != "0" ] && sudo $Selection "/dev/$DevName" && SelectedPartitions="";
+					sudo gparted "/dev/$DevName" &> /dev/null
+					unset SelectedPartitions
 				fi
 			else
 				unset MountPoint NewMountPoint Format FileSystem Label
@@ -213,7 +210,11 @@ InstallOS() {
 		if [ $MountPoint == "/boot" ]; then
 			BootPartNo="$(echo "$DevName" | sed 's/.*[^0-9]\([0-9]\+\)$/\1/')"
 			BootDisk="$(echo "$DevName" | sed 's/p\?[0-9]\+$//')"
-			sudo sfdisk --activate /dev/$BootDisk $BootPartNo
+			if [ "BootMode" == "i386-pc" ]; then
+				sudo sfdisk --activate /dev/$BootDisk $BootPartNo
+			else
+				sudo sgdisk -t EF00 /dev/$DevName
+			fi
 		fi
 		## Mount partitions / enable swap
 		if [ "$FileSystem" == "swap" ]; then sudo swapon "/dev/$DevName"
@@ -341,18 +342,12 @@ while true; do
 							InstallOS "${SelectedDisk}1;/boot;YES;vfat;BOOT ${SelectedDisk}2;/;YES;ext4;$(cat /etc/os-release | grep -v "_ID=" | grep -m 1 "ID=" | cut -d '=' -f 2)"
 						fi;;
 				esac; break
-			done
-			kdialog --msgbox "$OS_NAME installation complete. Please restart your computer.\n\nYou will be automatically logged in as the user \"live\" and will be asked to complete the setup.\n\nHave fun, and thanks for using $OS_NAME!"
-			exit 0;;
+			done; [ ! -z "$SelectedDisk" ] && MsgDone && exit 0;;
 		"expert")
 			SelectedPartitions="$(PartitionSelection)"
 			if [ ! -z "$SelectedPartitions" ]; then
 				kdialog --warningyesno "$OS_NAME is now ready to be installed to the selected partitions.\nThis will delete any existing OS on the selected partitions.\nThis will also delete all data on partitions that will be formatted.\nPlease check the list of changes:\n\n${SelectedPartitions}\n\nBegin installation?" && Continue=1 || Continue=0
-				if [ "$Continue" == 1 ]; then
-					InstallOS "$SelectedPartitions"
-					kdialog --msgbox "$OS_NAME installation complete. Please restart your computer.\n\nYou will be automatically logged in as the user \"live\" and will be asked to complete the setup.\n\nHave fun, and thanks for using $OS_NAME!"
-					exit 0
-				fi
+				if [ "$Continue" == 1 ]; then InstallOS "$SelectedPartitions" && MsgDone; exit 0; fi
 			fi;;
 	esac
 done
