@@ -19,13 +19,6 @@ depends=(bundle-media-codecs
 	lib32-libdecor
 	lib32-libindicator
 	lib32-libxslt
-	lib32-sdl_image
-	lib32-sdl_mixer
-	lib32-sdl_net
-	lib32-sdl_ttf
-	lib32-sdl2_image
-	lib32-sdl2_mixer
-	lib32-sdl2_ttf
 	lib32-smpeg
 	vkd3d-proton-mingw-git
 	wine-gecko

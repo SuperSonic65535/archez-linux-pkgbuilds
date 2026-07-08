@@ -32,24 +32,24 @@ fi
 # Remove unused mkinitcpio/dracut files
 if [ -f /boot/initramfs-linux*.img ]; then
 	# Remove kernel initcpios from /boot if that kernel is no longer installed
-	if [ -f /usr/bin/mkinitcpio ] || [ -f /usr/bin/dracut ]; then
-		for INITRAMFS_FILE in $(ls /boot/initramfs-linux*.img); do
-			INITRAMFS=$(basename $INITRAMFS_FILE)
-			#
-			# Trim text before "linux"
-			INITRAMFS_FILE_SUBSTRING_OFFSET=$(echo "$INITRAMFS" | grep -b -o "linux" | cut -d ':' -f 1)
-			INITRAMFS=${INITRAMFS:$INITRAMFS_FILE_SUBSTRING_OFFSET}
-			# Trim file extension
-			INITRAMFS_FILE_SUBSTRING_OFFSET=$(echo "$INITRAMFS" | grep -b -o ".img" | cut -d ':' -f 1)
-			INITRAMFS=${INITRAMFS:0:$INITRAMFS_FILE_SUBSTRING_OFFSET}
-			INITRAMFS=$(echo $INITRAMFS | sed 's/-fallback//')
-			#
-			if [[ " $INSTALLED_KERNELS " != *" $INITRAMFS "* ]]; then
-				rm -f $INITRAMFS_FILE
-				echo "Removed $INITRAMFS_FILE"
-			fi
-		done
-	else # Remove mkinitcpio/dracut initramfs if mkinitcpio/dracut is not installed
+	for INITRAMFS_FILE in $(ls /boot/initramfs-linux*.img); do
+		INITRAMFS=$(basename $INITRAMFS_FILE)
+		#
+		# Trim text before "linux"
+		INITRAMFS_FILE_SUBSTRING_OFFSET=$(echo "$INITRAMFS" | grep -b -o "linux" | cut -d ':' -f 1)
+		INITRAMFS=${INITRAMFS:$INITRAMFS_FILE_SUBSTRING_OFFSET}
+		# Trim file extension
+		INITRAMFS_FILE_SUBSTRING_OFFSET=$(echo "$INITRAMFS" | grep -b -o ".img" | cut -d ':' -f 1)
+		INITRAMFS=${INITRAMFS:0:$INITRAMFS_FILE_SUBSTRING_OFFSET}
+		INITRAMFS=$(echo $INITRAMFS | sed 's/-fallback//')
+		#
+		if [[ " $INSTALLED_KERNELS " != *" $INITRAMFS "* ]]; then
+			rm -f $INITRAMFS_FILE
+			echo "Removed $INITRAMFS_FILE"
+		fi
+	done
+	# Remove mkinitcpio/dracut initramfs if mkinitcpio/dracut is not installed
+	if [ ! -f /usr/bin/mkinitcpio ] && [ ! -f /usr/bin/dracut ]; then
 		rm -rf /boot/initramfs-linux*.img
 	fi
 fi
