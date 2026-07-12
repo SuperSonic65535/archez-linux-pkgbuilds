@@ -1,11 +1,13 @@
 post_upgrade() {
 	if [ $(vercmp 2026.3.21-75438 $2) -ge 0 ]; then
 		## Upgrade to new repo
+		echo "Updating to new repo..."
 		sed -i "s/\[zestiso\]/\[archez\]/g" /etc/pacman.conf
 		sed -i "s|https://raw.githubusercontent.com/SuperSonic65535/zestiso-repo/main/|https://raw.githubusercontent.com/SuperSonic65535/archez-linux-repo/main/|g" /etc/pacman.conf
 	fi
 	if [ $(vercmp 2026.6.8-53308 $2) -ge 0 ]; then
 		## Remove leftover archiso files
+		echo "Cleaning junk files..."
 		rm -f /version /etc/mkinitcpio.conf.system /etc/sudoers.d/10-installer /etc/systemd/journald.conf.d/volatile-storage_archiso.conf /etc/systemd/system/getty@tty1.service.d/autologin_archiso.conf /usr/share/polkit-1/rules.d/49-archiso_nopasswd_global.rules
 		rmdir /etc/systemd/journald.conf.d /etc/systemd/system/getty@tty1.service.d &> /dev/null
 		## Disable ModemManager if not needed

@@ -181,20 +181,14 @@ InstallGrub() {
         DebugMsg "Installing GRUB to ESP (mounted on: $ESP_DIR)"
         grub-install --target="$BOOT_MODE" --efi-directory="$ESP_DIR" --bootloader-id=GRUB
     fi
+
+    ## Fix generation of broken entries in grub.cfg
+    cp /usr/share/arch-tweaks/custom-configs/etc/grub.d/10_linux /etc/grub.d/10_linux
 }
 
 UpdateGrubCfg() {
-    if [ "$BOOT_MODE" == "i386-pc" ]; then ## BIOS
-        ## For BIOS, grub.cfg will always be on /boot/grub/grub.cfg
-        if [ -d /boot/grub ]; then grub-mkconfig -o /boot/grub/grub.cfg
-        else echo "GRUB bootloader is not installed, skipping GRUB configuration."; fi
-    elif [ "$BOOT_MODE" == "x86_64-efi" ] || [ "$BOOT_MODE" == "i386-efi" ]; then ## UEFI
-        ## For UEFI, grub.cfg will be on esp:/grub/grub.cfg
-        ## So we need to find the mount directory of the ESP.
-        ESP_DIR="$(GetESPMountDir)"
-        if [ -d "$ESP_DIR/grub" ]; then grub-mkconfig -o "$ESP_DIR/grub/grub.cfg"
-        else echo "GRUB bootloader is not installed, skipping GRUB configuration."; fi
-    fi
+    if [ -d /boot/grub ]; then grub-mkconfig -o /boot/grub/grub.cfg
+    else echo "GRUB bootloader is not installed, skipping GRUB configuration."; fi
 }
 
 case $1 in

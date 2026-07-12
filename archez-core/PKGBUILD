@@ -6,6 +6,7 @@ pkgdesc='ArchEZ minimal core installation'
 arch=(any)
 url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
 replaces=('zestiso-core' 'zestiso-branding')
+install=install.install
 depends=(
 	arch-tweaks
 	base

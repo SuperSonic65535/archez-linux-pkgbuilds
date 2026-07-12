@@ -6,6 +6,7 @@ pkgrel=$(expr $(date +%-S) + $(expr 60 \* $(date +%-M)) + $(expr 3600 \* $(date 
 pkgdesc='Performance and effeciency optimisations and other tweaks for Arch Linux'
 arch=(any)
 url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
+install=install.install
 depends=(
 	base
 	bashrc-d
