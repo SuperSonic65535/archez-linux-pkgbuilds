@@ -9,17 +9,6 @@ url='https://github.com/SuperSonic65535/archez-linux-pkgbuilds'
 depends=(bundle-media-codecs
 	dxvk-async-git
 	joystickwake
-	lib32-alsa-plugins
-	lib32-libavtp
-	lib32-openal
-	lib32-curl
-	lib32-fluidsynth
-	lib32-libappindicator
-	lib32-libcurl-gnutls
-	lib32-libdecor
-	lib32-libindicator
-	lib32-libxslt
-	lib32-smpeg
 	vkd3d-proton-mingw-git
 	wine-gecko
 	wine-mono
